@@ -306,8 +306,17 @@ function Leaderboard({ participants, matches, invoices }) {
     .map(p => {
       const userInvoices = (invoices||[]).filter(inv => inv.participantId === p.id && inv.status === "approved");
       const invPts = userInvoices.reduce((sum, inv) => sum + calcInvoicePoints(inv.amount), 0);
-      const gameStats = calcParticipantPoints(p.predictions, matches, []);
-      return {...p, total: gameStats.total + invPts, exact: gameStats.exact, correct: gameStats.correct, invPts};
+      let gamePts = 0, exact = 0, correct = 0;
+      matches.forEach(m => {
+        const pred = p.predictions?.[m.id];
+        if (!pred) return;
+        const pts = calcPoints(pred.home, pred.away, m.realHome, m.realAway);
+        if (pts === null) return;
+        gamePts += pts;
+        if (pts === 5) exact++;
+        if (pts >= 3) correct++;
+      });
+      return {...p, total: gamePts + invPts, gamePts, exact, correct, invPts};
     })
     .sort((a,b) => b.total - a.total || b.exact - a.exact);
 
@@ -1064,15 +1073,14 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
         <div>
           <div style={{...S.sectionTitle,marginBottom:12}}>{participants.length} Participantes</div>
           {participants.length===0 && <div style={{color:"#9ca3af",padding:16}}>Sin participantes</div>}
-          {[...participants].sort((a,b)=>{
-            const ai=invoices.filter(inv=>inv.participantId===a.id);
-            const bi=invoices.filter(inv=>inv.participantId===b.id);
-            const pa=calcParticipantPoints(a.predictions,matches,ai);
-            const pb=calcParticipantPoints(b.predictions,matches,bi);
-            return pb.total-pa.total;
-          }).map((p,i)=>{
-            const userInv=invoices.filter(inv=>inv.participantId===p.id);
-            const pts=calcParticipantPoints(p.predictions,matches,userInv);
+          {[...participants].map(p=>{
+            const userInv=(invoices||[]).filter(inv=>inv.participantId===p.id&&inv.status==="approved");
+            const invPts=userInv.reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
+            let gamePts=0,exact=0,correct=0;
+            matches.forEach(m=>{const pred=p.predictions?.[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts===null)return;gamePts+=pts;if(pts===5)exact++;if(pts>=3)correct++;});
+            return {...p,_total:gamePts+invPts,_invPts:invPts,_exact:exact,_correct:correct};
+          }).sort((a,b)=>b._total-a._total).map((p,i)=>{
+            const pts={total:p._total,invPts:p._invPts,exact:p._exact,correct:p._correct};
             return (
               <div key={p.id} style={{...S.leaderRow(i),justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
