@@ -892,13 +892,95 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-        {[["pronosticos","Mis Pronosticos"],["facturas","Mis Facturas"]].map(([t,l])=>(
+        {[["pronosticos","Mis Pronosticos"],["tablas","Mis Tablas"],["facturas","Mis Facturas"]].map(([t,l])=>(
           <button key={t} style={S.navBtn(activeTab===t)} onClick={()=>setActiveTab(t)}>{l}</button>
         ))}
       </div>
 
       {activeTab==="facturas" && (
         <InvoiceForm currentUser={currentUser} invoices={invoices} setInvoices={setInvoices} />
+      )}
+
+      {activeTab==="tablas" && (
+        <div className="fi">
+          <div style={{...S.card,padding:"10px 14px",marginBottom:14,background:"#eff6ff",border:"1px solid #bfdbfe"}}>
+            <div style={{fontSize:"0.8rem",color:"#1d4ed8",fontWeight:600}}>
+              Tablas de posiciones segun tus pronosticos de marcadores
+            </div>
+          </div>
+          {Object.keys(GROUPS).map(grp => {
+            // Calculate W/D/L/GF/GA/Pts per team for this group
+            const teams = GROUPS[grp];
+            const stats = {};
+            teams.forEach(t => { stats[t]={team:t,pj:0,g:0,e:0,p:0,gf:0,gc:0,pts:0}; });
+            matches.filter(m=>m.phase==="groups"&&m.group===grp).forEach(m=>{
+              const pred=preds[m.id];
+              if(!pred||pred.home===null||pred.away===null) return;
+              const h=Number(pred.home),a=Number(pred.away);
+              if(isNaN(h)||isNaN(a)) return;
+              if(!stats[m.home]||!stats[m.away]) return;
+              stats[m.home].pj++; stats[m.away].pj++;
+              stats[m.home].gf+=h; stats[m.home].gc+=a;
+              stats[m.away].gf+=a; stats[m.away].gc+=h;
+              if(h>a){stats[m.home].g++;stats[m.home].pts+=3;stats[m.away].p++;}
+              else if(h<a){stats[m.away].g++;stats[m.away].pts+=3;stats[m.home].p++;}
+              else{stats[m.home].e++;stats[m.away].e++;stats[m.home].pts++;stats[m.away].pts++;}
+            });
+            const table = Object.values(stats).sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf);
+            const hasData = table.some(s=>s.pj>0);
+            return (
+              <div key={grp} style={{...S.card,padding:0,overflow:"hidden",marginBottom:12}}>
+                <div style={{background:GROUP_COLORS[grp],padding:"8px 14px"}}>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:"0.85rem",letterSpacing:1}}>GRUPO {grp}</div>
+                </div>
+                {!hasData ? (
+                  <div style={{padding:"14px",color:"#9ca3af",fontSize:"0.8rem",textAlign:"center"}}>
+                    Aun no has ingresado pronosticos para este grupo
+                  </div>
+                ) : (
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.78rem"}}>
+                      <thead>
+                        <tr style={{background:BRAND.gray50,borderBottom:"2px solid "+BRAND.gray200}}>
+                          {["Pos","Equipo","PJ","G","E","P","GF","GC","GD","Pts"].map(h=>(
+                            <th key={h} style={{padding:"6px 8px",textAlign:h==="Equipo"?"left":"center",color:BRAND.gray600,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {table.map((s,i)=>{
+                          const gd=s.gf-s.gc;
+                          const rowColor=i===0?"#f0fdf4":i===1?"#f0fdf4":i===2?"#fffbeb":"#fff";
+                          const posColor=i<2?BRAND.red:i===2?"#d97706":BRAND.gray400;
+                          return (
+                            <tr key={s.team} style={{borderBottom:"1px solid "+BRAND.gray100,background:rowColor}}>
+                              <td style={{padding:"7px 8px",textAlign:"center",fontWeight:800,color:posColor}}>{i+1}</td>
+                              <td style={{padding:"7px 8px",fontWeight:700,color:BRAND.gray900,whiteSpace:"nowrap"}}>
+                                <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:i<2?"#16a34a":i===2?"#d97706":"#e5e7eb",marginRight:6,verticalAlign:"middle"}}></span>
+                                {s.team}
+                              </td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:BRAND.gray600}}>{s.pj}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:"#16a34a",fontWeight:600}}>{s.g}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:BRAND.gray600}}>{s.e}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:"#dc2626"}}>{s.p}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:BRAND.gray600}}>{s.gf}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",color:BRAND.gray600}}>{s.gc}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",fontWeight:700,color:gd>0?"#16a34a":gd<0?"#dc2626":BRAND.gray600}}>{gd>0?"+"+gd:gd}</td>
+                              <td style={{padding:"7px 8px",textAlign:"center",fontWeight:800,fontSize:"0.9rem",color:BRAND.red}}>{s.pts}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div style={{padding:"5px 12px",fontSize:"0.7rem",color:"#9ca3af",borderTop:"1px solid "+BRAND.gray100}}>
+                      Verde = clasificado · Amarillo = posible mejor 3ro
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {activeTab==="pronosticos" && (
