@@ -41,12 +41,13 @@ const GROUP_COLORS = {
 };
 
 const LOCK_DATES = {
-  groups:  new Date("2026-06-10T00:00:00"),
-  round32: new Date("2026-07-01T00:00:00"),
-  quarters:new Date("2026-07-03T00:00:00"),
+  groups:  new Date("2026-06-11T00:00:00"),
+  round32: new Date("2026-06-28T00:00:00"),
+  round16: new Date("2026-07-04T00:00:00"),
+  quarters:new Date("2026-07-09T00:00:00"),
   semis:   new Date("2026-07-14T00:00:00"),
-  third:   new Date("2026-07-17T00:00:00"),
-  final:   new Date("2026-07-18T00:00:00"),
+  third:   new Date("2026-07-18T00:00:00"),
+  final:   new Date("2026-07-19T00:00:00"),
 };
 
 // INVOICE POINTS SCALE (CAD)
@@ -70,19 +71,21 @@ function isPhaseLocked(phase, adminUnlocked = {}) {
 function generateGroupMatches() {
   const matches = [];
   let id = 1;
+  // Official FIFA 2026 dates per match pair [home_i, away_j]
+  // Order: [0v1, 0v2, 0v3, 1v2, 1v3, 2v3]
   const dates = {
-    A:["11 Jun","12 Jun","16 Jun","16 Jun","20 Jun","24 Jun"],
-    B:["12 Jun","16 Jun","17 Jun","20 Jun","21 Jun","25 Jun"],
-    C:["13 Jun","17 Jun","18 Jun","21 Jun","22 Jun","26 Jun"],
-    D:["12 Jun","13 Jun","17 Jun","18 Jun","22 Jun","26 Jun"],
-    E:["15 Jun","15 Jun","19 Jun","19 Jun","23 Jun","27 Jun"],
-    F:["14 Jun","14 Jun","18 Jun","18 Jun","22 Jun","26 Jun"],
-    G:["13 Jun","13 Jun","17 Jun","17 Jun","21 Jun","25 Jun"],
-    H:["14 Jun","15 Jun","18 Jun","19 Jun","22 Jun","26 Jun"],
-    I:["15 Jun","16 Jun","19 Jun","20 Jun","23 Jun","27 Jun"],
-    J:["16 Jun","16 Jun","20 Jun","20 Jun","24 Jun","28 Jun"],
-    K:["14 Jun","15 Jun","18 Jun","19 Jun","23 Jun","27 Jun"],
-    L:["13 Jun","14 Jun","17 Jun","18 Jun","21 Jun","25 Jun"],
+    A:["11 Jun","11 Jun","18 Jun","24 Jun","18 Jun","24 Jun"],
+    B:["12 Jun","18 Jun","12 Jun","13 Jun","24 Jun","24 Jun"],
+    C:["13 Jun","19 Jun","13 Jun","19 Jun","27 Jun","27 Jun"],
+    D:["12 Jun","13 Jun","19 Jun","19 Jun","25 Jun","25 Jun"],
+    E:["14 Jun","14 Jun","20 Jun","20 Jun","25 Jun","25 Jun"],
+    F:["14 Jun","14 Jun","20 Jun","20 Jun","25 Jun","25 Jun"],
+    G:["15 Jun","15 Jun","21 Jun","21 Jun","26 Jun","26 Jun"],
+    H:["15 Jun","15 Jun","21 Jun","21 Jun","26 Jun","26 Jun"],
+    I:["16 Jun","16 Jun","22 Jun","22 Jun","26 Jun","26 Jun"],
+    J:["16 Jun","16 Jun","22 Jun","22 Jun","27 Jun","27 Jun"],
+    K:["17 Jun","17 Jun","23 Jun","23 Jun","27 Jun","27 Jun"],
+    L:["17 Jun","17 Jun","23 Jun","23 Jun","27 Jun","27 Jun"],
   };
   Object.entries(GROUPS).forEach(([grp, teams]) => {
     [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]].forEach(([i,j], idx) => {
@@ -96,24 +99,55 @@ function generateGroupMatches() {
 }
 
 function generateElimMatches() {
-  const rounds = [
-    {phase:"round32", label:"Octavos de Final", count:16, date:"2-3 Jul"},
-    {phase:"quarters", label:"Cuartos de Final", count:8, date:"4-5 Jul"},
-    {phase:"semis", label:"Semifinales", count:4, date:"15-16 Jul"},
-    {phase:"third", label:"Tercer Lugar", count:1, date:"18 Jul"},
-    {phase:"final", label:"Gran Final", count:1, date:"19 Jul"},
+  // Official FIFA 2026 playoff structure
+  // Round of 32: 16 matches, June 28 - July 3
+  // Round of 16: 8 matches, July 4-7
+  // Quarterfinals: 4 matches, July 9-11
+  // Semifinals: 2 matches, July 14-15
+  // Third Place: 1 match, July 18
+  // Final: 1 match, July 19
+  const round32 = [
+    {id:1001,phase:"round32",label:"Ronda de 32",matchNum:1,desc:"2do Grupo A vs 2do Grupo B",date:"28 Jun",home:"2do Grupo A",away:"2do Grupo B",realHome:null,realAway:null},
+    {id:1002,phase:"round32",label:"Ronda de 32",matchNum:2,desc:"1ro Grupo C vs 2do Grupo F",date:"29 Jun",home:"1ro Grupo C",away:"2do Grupo F",realHome:null,realAway:null},
+    {id:1003,phase:"round32",label:"Ronda de 32",matchNum:3,desc:"1ro Grupo E vs 3ro A/B/C/D/F",date:"29 Jun",home:"1ro Grupo E",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1004,phase:"round32",label:"Ronda de 32",matchNum:4,desc:"1ro Grupo F vs 2do Grupo C",date:"29 Jun",home:"1ro Grupo F",away:"2do Grupo C",realHome:null,realAway:null},
+    {id:1005,phase:"round32",label:"Ronda de 32",matchNum:5,desc:"2do Grupo E vs 2do Grupo I",date:"30 Jun",home:"2do Grupo E",away:"2do Grupo I",realHome:null,realAway:null},
+    {id:1006,phase:"round32",label:"Ronda de 32",matchNum:6,desc:"1ro Grupo I vs 3ro C/D/F/G/H",date:"30 Jun",home:"1ro Grupo I",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1007,phase:"round32",label:"Ronda de 32",matchNum:7,desc:"1ro Grupo A vs 3ro C/E/F/H/I",date:"30 Jun",home:"1ro Grupo A",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1008,phase:"round32",label:"Ronda de 32",matchNum:8,desc:"1ro Grupo L vs 3ro E/H/I/J/K",date:"1 Jul",home:"1ro Grupo L",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1009,phase:"round32",label:"Ronda de 32",matchNum:9,desc:"1ro Grupo G vs 3ro A/E/H/I/J",date:"1 Jul",home:"1ro Grupo G",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1010,phase:"round32",label:"Ronda de 32",matchNum:10,desc:"1ro Grupo D vs 3ro B/E/F/I/J",date:"1 Jul",home:"1ro Grupo D",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1011,phase:"round32",label:"Ronda de 32",matchNum:11,desc:"1ro Grupo H vs 2do Grupo J",date:"2 Jul",home:"1ro Grupo H",away:"2do Grupo J",realHome:null,realAway:null},
+    {id:1012,phase:"round32",label:"Ronda de 32",matchNum:12,desc:"2do Grupo K vs 2do Grupo L",date:"2 Jul",home:"2do Grupo K",away:"2do Grupo L",realHome:null,realAway:null},
+    {id:1013,phase:"round32",label:"Ronda de 32",matchNum:13,desc:"1ro Grupo B vs 3ro E/F/G/I/J",date:"2 Jul",home:"1ro Grupo B",away:"3ro Mejor",realHome:null,realAway:null},
+    {id:1014,phase:"round32",label:"Ronda de 32",matchNum:14,desc:"2do Grupo D vs 2do Grupo G",date:"3 Jul",home:"2do Grupo D",away:"2do Grupo G",realHome:null,realAway:null},
+    {id:1015,phase:"round32",label:"Ronda de 32",matchNum:15,desc:"1ro Grupo J vs 2do Grupo H",date:"3 Jul",home:"1ro Grupo J",away:"2do Grupo H",realHome:null,realAway:null},
+    {id:1016,phase:"round32",label:"Ronda de 32",matchNum:16,desc:"1ro Grupo K vs 3ro D/E/I/J/L",date:"3 Jul",home:"1ro Grupo K",away:"3ro Mejor",realHome:null,realAway:null},
   ];
-  const matches = [];
-  let id = 1000;
-  rounds.forEach(r => {
-    for (let k = 0; k < r.count; k++) {
-      matches.push({ id:id++, phase:r.phase, label:r.label,
-        date:r.date, matchNum:k+1,
-        home:"Por definir", away:"Por definir",
-        realHome:null, realAway:null });
-    }
-  });
-  return matches;
+  const round16 = [
+    {id:1017,phase:"round16",label:"Ronda de 16",matchNum:1,desc:"Gan. P1 vs Gan. P3",date:"4 Jul",home:"Gan. P1",away:"Gan. P3",realHome:null,realAway:null},
+    {id:1018,phase:"round16",label:"Ronda de 16",matchNum:2,desc:"Gan. P2 vs Gan. P5",date:"4 Jul",home:"Gan. P2",away:"Gan. P5",realHome:null,realAway:null},
+    {id:1019,phase:"round16",label:"Ronda de 16",matchNum:3,desc:"Gan. P4 vs Gan. P6",date:"5 Jul",home:"Gan. P4",away:"Gan. P6",realHome:null,realAway:null},
+    {id:1020,phase:"round16",label:"Ronda de 16",matchNum:4,desc:"Gan. P7 vs Gan. P9",date:"5 Jul",home:"Gan. P7",away:"Gan. P9",realHome:null,realAway:null},
+    {id:1021,phase:"round16",label:"Ronda de 16",matchNum:5,desc:"Gan. P8 vs Gan. P10",date:"6 Jul",home:"Gan. P8",away:"Gan. P10",realHome:null,realAway:null},
+    {id:1022,phase:"round16",label:"Ronda de 16",matchNum:6,desc:"Gan. P11 vs Gan. P13",date:"6 Jul",home:"Gan. P11",away:"Gan. P13",realHome:null,realAway:null},
+    {id:1023,phase:"round16",label:"Ronda de 16",matchNum:7,desc:"Gan. P12 vs Gan. P14",date:"7 Jul",home:"Gan. P12",away:"Gan. P14",realHome:null,realAway:null},
+    {id:1024,phase:"round16",label:"Ronda de 16",matchNum:8,desc:"Gan. P15 vs Gan. P16",date:"7 Jul",home:"Gan. P15",away:"Gan. P16",realHome:null,realAway:null},
+  ];
+  const quarters = [
+    {id:1025,phase:"quarters",label:"Cuartos de Final",matchNum:1,desc:"Gan. R16-P1 vs Gan. R16-P2",date:"9 Jul",home:"Gan. R16-1",away:"Gan. R16-2",realHome:null,realAway:null},
+    {id:1026,phase:"quarters",label:"Cuartos de Final",matchNum:2,desc:"Gan. R16-P3 vs Gan. R16-P4",date:"9 Jul",home:"Gan. R16-3",away:"Gan. R16-4",realHome:null,realAway:null},
+    {id:1027,phase:"quarters",label:"Cuartos de Final",matchNum:3,desc:"Gan. R16-P5 vs Gan. R16-P6",date:"10 Jul",home:"Gan. R16-5",away:"Gan. R16-6",realHome:null,realAway:null},
+    {id:1028,phase:"quarters",label:"Cuartos de Final",matchNum:4,desc:"Gan. R16-P7 vs Gan. R16-P8",date:"11 Jul",home:"Gan. R16-7",away:"Gan. R16-8",realHome:null,realAway:null},
+  ];
+  const semis = [
+    {id:1029,phase:"semis",label:"Semifinales",matchNum:1,desc:"Gan. CF1 vs Gan. CF2",date:"14 Jul",home:"Gan. CF-1",away:"Gan. CF-2",realHome:null,realAway:null},
+    {id:1030,phase:"semis",label:"Semifinales",matchNum:2,desc:"Gan. CF3 vs Gan. CF4",date:"15 Jul",home:"Gan. CF-3",away:"Gan. CF-4",realHome:null,realAway:null},
+  ];
+  const third = [{id:1031,phase:"third",label:"Tercer Lugar",matchNum:1,desc:"Per. SF1 vs Per. SF2",date:"18 Jul",home:"Per. SF-1",away:"Per. SF-2",realHome:null,realAway:null}];
+  const final = [{id:1032,phase:"final",label:"Gran Final",matchNum:1,desc:"Gan. SF1 vs Gan. SF2",date:"19 Jul",home:"Gan. SF-1",away:"Gan. SF-2",realHome:null,realAway:null}];
+
+  return [...round32,...round16,...quarters,...semis,...third,...final];
 }
 
 const INITIAL_MATCHES = [...generateGroupMatches(), ...generateElimMatches()];
@@ -703,8 +737,8 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
   const groupMatches = matches.filter(m=>m.phase==="groups");
   const elimMatches = matches.filter(m=>m.phase!=="groups");
   const phases = [...new Set(elimMatches.map(m=>m.phase))];
-  const phaseLabels = {round32:"Octavos",quarters:"Cuartos",semis:"Semifinales",third:"3er Lugar",final:"Gran Final"};
-  const phaseColors = {round32:"#c0392b",quarters:"#8e44ad",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
+  const phaseLabels = {round32:"Ronda 32",round16:"Ronda 16",quarters:"Cuartos",semis:"Semis",third:"3er Lugar",final:"Final"};
+  const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
 
   const groupsLocked = isPhaseLocked("groups", adminUnlocked);
 
@@ -970,7 +1004,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
           <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
             {["groups","elim"].map(ph=>(
               <button key={ph} style={S.navBtn(activePhase===ph)} onClick={()=>setActivePhase(ph)}>
-                {ph==="groups"?"Fase de Grupos":"Eliminatorias"}
+                {ph==="groups"?"Grupos":"Playoffs"}
               </button>
             ))}
           </div>
@@ -1066,8 +1100,8 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
 function FixtureView({ matches }) {
   const [activeGroup, setActiveGroup] = useState("A");
   const [activePhase, setActivePhase] = useState("groups");
-  const phaseColors = {round32:"#c0392b",quarters:"#8e44ad",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
-  const phaseLabels = {round32:"Octavos de Final",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
+  const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
+  const phaseLabels = {round32:"Ronda 32",round16:"Ronda 16",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
   const groupMatches = matches.filter(m=>m.phase==="groups");
   const elimMatches = matches.filter(m=>m.phase!=="groups");
   const phases = [...new Set(elimMatches.map(m=>m.phase))];
@@ -1094,7 +1128,7 @@ function FixtureView({ matches }) {
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
         {["groups","elim"].map(ph=>(
           <button key={ph} style={S.navBtn(activePhase===ph)} onClick={()=>setActivePhase(ph)}>
-            {ph==="groups"?"Grupos":"Eliminatorias"}
+            {ph==="groups"?"Grupos":"Playoffs"}
           </button>
         ))}
       </div>
@@ -1144,8 +1178,8 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
   const [activeTab, setActiveTab] = useState("results");
   const ADMIN = "2026";
 
-  const phaseColors = {round32:"#c0392b",quarters:"#8e44ad",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
-  const phaseLabels = {round32:"Octavos de Final",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
+  const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
+  const phaseLabels = {round32:"Ronda 32",round16:"Ronda 16",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
   const groupMatches = matches.filter(m=>m.phase==="groups");
   const elimMatches = matches.filter(m=>m.phase!=="groups");
   const phases = [...new Set(elimMatches.map(m=>m.phase))];
@@ -1258,7 +1292,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
           <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
             {["groups","elim"].map(ph=>(
               <button key={ph} style={S.navBtn(activePhase===ph)} onClick={()=>setActivePhase(ph)}>
-                {ph==="groups"?"Grupos":"Eliminatorias"}
+                {ph==="groups"?"Grupos":"Playoffs"}
               </button>
             ))}
           </div>
@@ -1340,9 +1374,10 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
         <div>
           <p style={{color:"#6b7280",marginBottom:14,fontSize:"0.85rem"}}>Desbloquea una fase si hubo un error legitimo.</p>
           {[
-            {phase:"groups",label:"Fase de Grupos",lockDate:"10 Jun 2026",color:"#1F618D"},
-            {phase:"round32",label:"Octavos de Final",lockDate:"1 Jul 2026",color:"#c0392b"},
-            {phase:"quarters",label:"Cuartos de Final",lockDate:"3 Jul 2026",color:"#8e44ad"},
+            {phase:"groups",label:"Grupos",lockDate:"10 Jun 2026",color:"#1F618D"},
+            {phase:"round32",label:"Ronda de 32",lockDate:"28 Jun 2026",color:"#0369a1"},
+            {phase:"round16",label:"Ronda de 16",lockDate:"4 Jul 2026",color:"#7c3aed"},
+            {phase:"quarters",label:"Cuartos de Final",lockDate:"9 Jul 2026",color:"#c0392b"},
             {phase:"semis",label:"Semifinales",lockDate:"14 Jul 2026",color:"#e67e22"},
             {phase:"third",label:"Tercer Lugar",lockDate:"17 Jul 2026",color:"#2980b9"},
             {phase:"final",label:"Gran Final",lockDate:"18 Jul 2026",color:"#d3172e"},
