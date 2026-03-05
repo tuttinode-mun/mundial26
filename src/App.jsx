@@ -1182,7 +1182,40 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
 
       {activeTab==="users" && (
         <div>
-          <div style={{...S.sectionTitle,marginBottom:12}}>{participants.length} Participantes</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+            <div style={{...S.sectionTitle,marginBottom:0,borderBottom:"none"}}>{participants.length} Participantes</div>
+            <button style={{...S.btn("#16a34a"),fontSize:"0.8rem",padding:"7px 14px"}} onClick={()=>{
+              const ranked = [...participants].map(p=>{
+                const userInv=(invoices||[]).filter(inv=>inv.participantId===p.id&&inv.status==="approved");
+                const invPts=userInv.reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
+                let gamePts=0;
+                matches.forEach(m=>{const pred=p.predictions?.[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts!==null)gamePts+=pts;});
+                return {...p,_total:gamePts+invPts,_invPts:invPts};
+              }).sort((a,b)=>b._total-a._total);
+              const headers = ["Posicion","Nombre","Apellido","Correo","Telefono","Sucursal","Puntos Pronosticos","Puntos Facturas","Total Puntos","Facturas Registradas","Fecha Registro"];
+              const rows = ranked.map((p,i)=>[
+                i+1,
+                p.nombre||p.name||"",
+                p.apellido||"",
+                p.email||"",
+                p.telefono||"",
+                p.sucursal||"",
+                p._total-p._invPts,
+                p._invPts,
+                p._total,
+                (invoices||[]).filter(inv=>inv.participantId===p.id).length,
+                p.createdAt?new Date(p.createdAt).toLocaleDateString():"",
+              ]);
+              const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+              const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href=url; a.download="participantes-mundial2026.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }}>
+              Exportar a Excel (CSV)
+            </button>
+          </div>
           {participants.length===0 && <div style={{color:"#9ca3af",padding:16}}>Sin participantes</div>}
           {[...participants].map(p=>{
             const userInv=(invoices||[]).filter(inv=>inv.participantId===p.id&&inv.status==="approved");
