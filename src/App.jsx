@@ -129,6 +129,110 @@ function calcPoints(predH, predA, realH, realA) {
   return 0;
 }
 
+// Calculate group standings from a set of match results (either real or predicted)
+function calcGroupStandings(groupName, allMatches, getScore) {
+  const teams = GROUPS[groupName];
+  const standings = {};
+  teams.forEach(t => { standings[t] = {team:t, pts:0, gf:0, ga:0, gd:0, played:0}; });
+
+  allMatches.filter(m => m.phase==="groups" && m.group===groupName).forEach(m => {
+    const score = getScore(m);
+    if (!score) return;
+    const {h, a} = score;
+    if (h===null||a===null||isNaN(h)||isNaN(a)) return;
+    if (!standings[m.home]||!standings[m.away]) return;
+    standings[m.home].played++; standings[m.away].played++;
+    standings[m.home].gf+=h; standings[m.home].ga+=a;
+    standings[m.away].gf+=a; standings[m.away].ga+=h;
+    standings[m.home].gd+=h-a; standings[m.away].gd+=a-h;
+    if (h>a) { standings[m.home].pts+=3; }
+    else if (h<a) { standings[m.away].pts+=3; }
+    else { standings[m.home].pts+=1; standings[m.away].pts+=1; }
+  });
+
+  return Object.values(standings)
+    .sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+}
+
+// Get top 2 + best 3rd for each group
+function calcAllClassified(allMatches, getScore) {
+  const result = { byGroup:{}, thirdPlaces:[] };
+  Object.keys(GROUPS).forEach(grp => {
+    const standings = calcGroupStandings(grp, allMatches, getScore);
+    // Only count if group has enough played matches
+    const played = standings.filter(s=>s.played>0);
+    if (played.length < 2) return;
+    result.byGroup[grp] = standings;
+    if (standings[0]?.played>0) result.byGroup[grp+"_1st"] = standings[0].team;
+    if (standings[1]?.played>0) result.byGroup[grp+"_2nd"] = standings[1].team;
+    if (standings[2]?.played>0) result.thirdPlaces.push({...standings[2], group:grp});
+  });
+  // Best 8 third places
+  result.top8thirds = result.thirdPlaces
+    .sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf)
+    .slice(0,8)
+    .map(t=>t.team);
+  return result;
+}
+
+// Calculate bonus points for classification predictions
+function calcClassificationBonus(predictions, allMatches) {
+  // Check if real results have enough data
+  const realGroupMatches = allMatches.filter(m=>m.phase==="groups"&&m.realHome!==null);
+  if (realGroupMatches.length === 0) return {bonus:0, details:[]};
+
+  // Real classified
+  const realClassified = calcAllClassified(allMatches, m=>({h:m.realHome, a:m.realAway}));
+
+  // Predicted classified (from participant's predictions)
+  const predClassified = calcAllClassified(allMatches, m=>{
+    const pred = predictions?.[m.id];
+    if (!pred||pred.home===null||pred.away===null) return null;
+    return {h:Number(pred.home), a:Number(pred.away)};
+  });
+
+  let bonus = 0;
+  const details = [];
+
+  // Check 1st and 2nd place for each group
+  Object.keys(GROUPS).forEach(grp => {
+    ["1st","2nd"].forEach(pos => {
+      const key = grp+"_"+pos;
+      const real = realClassified.byGroup[key];
+      const pred = predClassified.byGroup[key];
+      if (!real||!pred) return;
+      if (pred===real) {
+        bonus+=10;
+        details.push({type:"group_pos", grp, pos, team:real, pts:10, msg:"Acerto "+pos+" del Grupo "+grp+": "+real+" (10pts)"});
+      } else {
+        // Check if predicted team classified but wrong position
+        const realGrp = realClassified.byGroup[grp];
+        if (realGrp && realGrp.slice(0,2).some(s=>s.team===pred)) {
+          bonus+=5;
+          details.push({type:"group_team", grp, pos, team:pred, pts:5, msg:"Acerto clasificado Grupo "+grp+": "+pred+" (5pts)"});
+        }
+      }
+    });
+  });
+
+  // Check best 8 thirds
+  const realTop8 = realClassified.top8thirds;
+  const predTop8 = predClassified.top8thirds;
+  if (realTop8.length>0 && predTop8.length>0) {
+    predTop8.forEach((team,i) => {
+      if (realTop8[i]===team) {
+        bonus+=10;
+        details.push({type:"third_pos", team, pts:10, msg:"Acerto mejor 3ro posicion "+(i+1)+": "+team+" (10pts)"});
+      } else if (realTop8.includes(team)) {
+        bonus+=5;
+        details.push({type:"third_team", team, pts:5, msg:"Acerto mejor 3ro: "+team+" (5pts)"});
+      }
+    });
+  }
+
+  return {bonus, details};
+}
+
 function calcParticipantPoints(predictions, matches, invoices) {
   let total=0, exact=0, correct=0;
   matches.forEach(m => {
@@ -140,7 +244,6 @@ function calcParticipantPoints(predictions, matches, invoices) {
     if (pts===5) exact++;
     if (pts>=3) correct++;
   });
-  // Add invoice bonus points
   const invPts = (invoices||[])
     .filter(inv=>inv.status==="approved")
     .reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
@@ -319,7 +422,8 @@ function Leaderboard({ participants, matches, invoices }) {
         if (pts === 5) exact++;
         if (pts >= 3) correct++;
       });
-      return {...p, total: gamePts + invPts, gamePts, exact, correct, invPts};
+      const {bonus: classPts} = calcClassificationBonus(p.predictions, matches);
+      return {...p, total: gamePts + invPts + classPts, gamePts, exact, correct, invPts, classPts};
     })
     .sort((a,b) => b.total - a.total || b.exact - a.exact);
 
@@ -360,6 +464,7 @@ function Leaderboard({ participants, matches, invoices }) {
                 <div style={{fontSize:"0.72rem", color:"#9ca3af", marginTop:1}}>
                   {p.exact} exactos · {p.correct} acertados
                   {p.invPts > 0 && <span style={{color:BRAND.red}}> · +{p.invPts}pts facturas</span>}
+                  {p.classPts > 0 && <span style={{color:"#7c3aed"}}> · +{p.classPts}pts clasificados</span>}
                 </div>
               </div>
               <div style={{textAlign:"right"}}>
@@ -390,6 +495,7 @@ function Leaderboard({ participants, matches, invoices }) {
                   <span>{p.exact} exactos</span>
                   <span>{p.correct} acertados</span>
                   {p.invPts>0 && <span style={{color:BRAND.red}}>+{p.invPts}pts facturas</span>}
+                  {p.classPts>0 && <span style={{color:"#7c3aed"}}>+{p.classPts}pts clasificados</span>}
                 </div>
               </div>
               <div style={{textAlign:"right"}}>
@@ -1190,9 +1296,10 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
                 const invPts=userInv.reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
                 let gamePts=0;
                 matches.forEach(m=>{const pred=p.predictions?.[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts!==null)gamePts+=pts;});
-                return {...p,_total:gamePts+invPts,_invPts:invPts};
+                const {bonus:classPts}=calcClassificationBonus(p.predictions,matches);
+                return {...p,_total:gamePts+invPts+classPts,_invPts:invPts,_classPts:classPts};
               }).sort((a,b)=>b._total-a._total);
-              const headers = ["Posicion","Nombre","Apellido","Correo","Telefono","Sucursal","Puntos Pronosticos","Puntos Facturas","Total Puntos","Facturas Registradas","Fecha Registro"];
+              const headers = ["Posicion","Nombre","Apellido","Correo","Telefono","Sucursal","Puntos Pronosticos","Puntos Clasificados","Puntos Facturas","Total Puntos","Facturas Registradas","Fecha Registro"];
               const rows = ranked.map((p,i)=>[
                 i+1,
                 p.nombre||p.name||"",
@@ -1200,7 +1307,8 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
                 p.email||"",
                 p.telefono||"",
                 p.sucursal||"",
-                p._total-p._invPts,
+                p._total-p._invPts-p._classPts,
+                p._classPts||0,
                 p._invPts,
                 p._total,
                 (invoices||[]).filter(inv=>inv.participantId===p.id).length,
@@ -1223,7 +1331,8 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
             const totalInv=(invoices||[]).filter(inv=>inv.participantId===p.id).length;
             let gamePts=0,exact=0,correct=0;
             matches.forEach(m=>{const pred=p.predictions?.[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts===null)return;gamePts+=pts;if(pts===5)exact++;if(pts>=3)correct++;});
-            return {...p,_total:gamePts+invPts,_invPts:invPts,_exact:exact,_correct:correct,_totalInv:totalInv};
+            const {bonus:classPts}=calcClassificationBonus(p.predictions,matches);
+            return {...p,_total:gamePts+invPts+classPts,_invPts:invPts,_classPts:classPts,_exact:exact,_correct:correct,_totalInv:totalInv};
           }).sort((a,b)=>b._total-a._total).map((p,i)=>(
               <div key={p.id} style={{...S.leaderRow(i),justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1236,6 +1345,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
                       {Object.keys(p.predictions||{}).length} pronosticos
                       &nbsp;|&nbsp; {p._totalInv} facturas
                       {p._invPts>0 && <span style={{color:BRAND.red}}> | +{p._invPts}pts facturas</span>}
+                      {p._classPts>0 && <span style={{color:"#7c3aed"}}> | +{p._classPts}pts clasificados</span>}
                     </div>
                   </div>
                 </div>
