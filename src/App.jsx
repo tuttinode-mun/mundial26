@@ -247,8 +247,8 @@ const S = {
     minWidth:26, textAlign:"center",
   }),
   leaderRow: (i) => ({
-    background:i===0?"#fff7f7":i===1?"#fafafa":i===2?"#fff9f5":BRAND.white,
-    border:"1.5px solid "+(i===0?BRAND.red:i===1?BRAND.gray200:i===2?"#e8c99a":BRAND.gray200),
+    background:i===0?"#fff0f2":i===1?"#fafafa":i===2?"#fffbf0":BRAND.white,
+    border:"1.5px solid "+(i===0?BRAND.red:i===1?"#9ca3af":i===2?"#d4a017":BRAND.gray200),
     borderRadius:10, padding:"10px 16px",
     display:"flex", alignItems:"center", gap:12,
     marginBottom:7,
@@ -300,68 +300,121 @@ const FontStyle = () => (
 
 // LEADERBOARD
 function Leaderboard({ participants, matches, invoices }) {
+  const [activeTab, setActiveTab] = useState("tabla");
+
   const ranked = [...participants]
     .map(p => {
-      const userInvoices = invoices.filter(inv=>inv.participantId===p.id);
-      return {...p, ...calcParticipantPoints(p.predictions, matches, userInvoices)};
+      const userInvoices = (invoices||[]).filter(inv => inv.participantId === p.id && inv.status === "approved");
+      const invPts = userInvoices.reduce((sum, inv) => sum + calcInvoicePoints(inv.amount), 0);
+      const gameStats = calcParticipantPoints(p.predictions, matches, []);
+      return {...p, total: gameStats.total + invPts, exact: gameStats.exact, correct: gameStats.correct, invPts};
     })
-    .sort((a,b) => b.total-a.total || b.exact-a.exact);
+    .sort((a,b) => b.total - a.total || b.exact - a.exact);
+
+  const top20 = ranked.slice(0, 20);
 
   return (
     <div className="fi">
-      <div style={S.sectionTitle}>Tabla de Clasificacion</div>
-      {ranked.length===0 && (
-        <div style={{textAlign:"center",color:"#9ca3af",padding:40}}>
-          Aun no hay participantes registrados
+      <div style={{display:"flex", gap:6, marginBottom:16, flexWrap:"wrap"}}>
+        {[["tabla","Clasificacion General"],["top20","Top 20"]].map(([t,l])=>(
+          <button key={t} style={S.navBtn(activeTab===t)} onClick={()=>setActiveTab(t)}>{l}</button>
+        ))}
+      </div>
+
+      {activeTab==="top20" && (
+        <div style={{...S.card, padding:0, overflow:"hidden"}}>
+          <div style={{background:BRAND.red, padding:"12px 18px"}}>
+            <div style={{color:"#fff", fontWeight:800, fontSize:"1rem", letterSpacing:1}}>TOP 20 - MEJORES PARTICIPANTES</div>
+          </div>
+          {top20.length===0 && (
+            <div style={{textAlign:"center", color:"#9ca3af", padding:30}}>Aun no hay participantes</div>
+          )}
+          {top20.map((p, i) => (
+            <div key={p.id} style={{
+              display:"flex", alignItems:"center", gap:12,
+              padding:"10px 18px",
+              background: i%2===0 ? "#fff" : BRAND.gray50,
+              borderBottom:"1px solid "+BRAND.gray100,
+            }}>
+              <div style={{
+                width:32, height:32, borderRadius:"50%",
+                background: i===0?BRAND.red:i===1?"#9ca3af":i===2?"#d97706":BRAND.gray100,
+                color: i<3?"#fff":BRAND.gray600,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontWeight:800, fontSize:"0.85rem", flexShrink:0,
+              }}>{i+1}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700, fontSize:"0.95rem", color:BRAND.gray900}}>{p.name}</div>
+                <div style={{fontSize:"0.72rem", color:"#9ca3af", marginTop:1}}>
+                  {p.exact} exactos · {p.correct} acertados
+                  {p.invPts > 0 && <span style={{color:BRAND.red}}> · +{p.invPts}pts facturas</span>}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:"1.4rem", fontWeight:800, color: i===0?BRAND.red:BRAND.gray900}}>{p.total}</div>
+                <div style={{fontSize:"0.65rem", color:"#9ca3af"}}>PTS</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      {ranked.map((p,i) => (
-        <div key={p.id} style={S.leaderRow(i)}>
-          <div style={{fontSize:"1.5rem"}}>
-            {i===0?"":i===1?"":i===2?"":
-              <span style={{color:"#9ca3af",fontSize:"0.9rem",fontWeight:700}}>#{i+1}</span>}
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:800,fontSize:"1rem"}}>{p.name}</div>
-            <div style={{color:"#9ca3af",fontSize:"0.75rem",marginTop:2,display:"flex",gap:10,flexWrap:"wrap"}}>
-              <span>{p.exact} exactos</span>
-              <span>{p.correct} acertados</span>
-              {p.invPts>0 && <span style={{color:"#d3172e"}}>+{p.invPts} pts facturas</span>}
+
+      {activeTab==="tabla" && (
+        <>
+          {ranked.length===0 && (
+            <div style={{textAlign:"center",color:"#9ca3af",padding:40}}>
+              Aun no hay participantes registrados
+            </div>
+          )}
+          {ranked.map((p,i) => (
+            <div key={p.id} style={S.leaderRow(i)}>
+              <div style={{fontSize:"1.4rem", width:30, textAlign:"center"}}>
+                {i===0?"🥇":i===1?"🥈":i===2?"🥉":
+                  <span style={{color:"#9ca3af",fontSize:"0.85rem",fontWeight:700}}>#{i+1}</span>}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:"1rem",color:BRAND.gray900}}>{p.name}</div>
+                <div style={{color:"#9ca3af",fontSize:"0.75rem",marginTop:2,display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <span>{p.exact} exactos</span>
+                  <span>{p.correct} acertados</span>
+                  {p.invPts>0 && <span style={{color:BRAND.red}}>+{p.invPts}pts facturas</span>}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:"1.8rem",fontWeight:800,
+                  color:i===0?BRAND.red:i===1?"#6b7280":i===2?"#b45309":BRAND.gray900,
+                  lineHeight:1}}>{p.total}</div>
+                <div style={{color:"#9ca3af",fontSize:"0.7rem"}}>PUNTOS</div>
+              </div>
+            </div>
+          ))}
+          <div style={{...S.card,marginTop:20}}>
+            <div style={S.sectionTitle}>Sistema de Puntos</div>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,marginBottom:8,letterSpacing:1}}>PRONOSTICOS</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
+                {[["5 pts","Resultado exacto","#16a34a"],["3 pts","Ganador correcto","#2563eb"],["0 pts","Resultado fallado","#dc2626"]].map(([pts,desc,color])=>(
+                  <div key={pts} style={{background:BRAND.gray50,border:"1px solid "+color+"33",borderRadius:10,padding:"10px",textAlign:"center"}}>
+                    <div style={{fontSize:"1.5rem",fontWeight:800,color}}>{pts}</div>
+                    <div style={{color:"#6b7280",fontSize:"0.75rem",marginTop:2}}>{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,marginBottom:8,letterSpacing:1}}>FACTURAS (CAD)</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:8}}>
+                {[["5 pts","$10-$50","#16a34a"],["10 pts","$51-$100","#2563eb"],["20 pts","$101-$200","#7c3aed"],["30 pts","+$200",BRAND.red]].map(([pts,range,color])=>(
+                  <div key={pts} style={{background:BRAND.gray50,border:"1px solid "+color+"33",borderRadius:10,padding:"10px",textAlign:"center"}}>
+                    <div style={{fontSize:"1.3rem",fontWeight:800,color}}>{pts}</div>
+                    <div style={{color:"#6b7280",fontSize:"0.75rem",marginTop:2}}>{range}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:"1.8rem",fontWeight:800,
-              color:i===0?"#d3172e":i===1?"#9e9e9e":i===2?"#cd7f32":"#ffffff",
-              lineHeight:1}}>{p.total}</div>
-            <div style={{color:"#9ca3af",fontSize:"0.7rem"}}>PUNTOS</div>
-          </div>
-        </div>
-      ))}
-      <div style={{...S.card,marginTop:20}}>
-        <div style={S.sectionTitle}>Sistema de Puntos</div>
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:"0.8rem",color:"#d3172e",fontWeight:700,marginBottom:8,letterSpacing:1}}>PRONOSTICOS</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8}}>
-            {[["5 pts","Resultado exacto","#27ae60"],["3 pts","Ganador correcto","#2980b9"],["0 pts","Resultado fallado","#c0392b"]].map(([pts,desc,color])=>(
-              <div key={pts} style={{background:"#f9fafb",border:"1px solid "+color+"44",borderRadius:10,padding:"10px",textAlign:"center"}}>
-                <div style={{fontSize:"1.6rem",fontWeight:800,color}}>{pts}</div>
-                <div style={{color:"#6b7280",fontSize:"0.78rem",marginTop:2}}>{desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div style={{fontSize:"0.8rem",color:"#d3172e",fontWeight:700,marginBottom:8,letterSpacing:1}}>FACTURAS (CAD)</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8}}>
-            {[["5 pts","$10 - $50","#27ae60"],["10 pts","$51 - $100","#2980b9"],["20 pts","$101 - $200","#8e44ad"],["30 pts","Mas de $200","#d3172e"]].map(([pts,range,color])=>(
-              <div key={pts} style={{background:"#f9fafb",border:"1px solid "+color+"44",borderRadius:10,padding:"10px",textAlign:"center"}}>
-                <div style={{fontSize:"1.4rem",fontWeight:800,color}}>{pts}</div>
-                <div style={{color:"#6b7280",fontSize:"0.78rem",marginTop:2}}>{range}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -591,7 +644,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       <div style={S.card}>
         <div style={{fontSize:"3rem",marginBottom:10}}>OK</div>
         <div style={{fontSize:"1.2rem",fontWeight:800,color:"#d3172e",marginBottom:8}}>Guardado!</div>
-        <div style={{color:"#6b7280",marginBottom:16}}>Hola <strong style={{color:"#ffffff"}}>{currentUser?.name}</strong></div>
+        <div style={{color:"#6b7280",marginBottom:16}}>Hola <strong style={{color:"#111827"}}>{currentUser?.name}</strong></div>
         <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           <button style={S.btn()} onClick={()=>setStep("form")}>Editar Pronosticos</button>
           <button style={S.btn("#6b7280",true)} onClick={()=>{setStep("login");setName("");setPin("");}}>Cambiar Usuario</button>
@@ -863,7 +916,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,fontSize:"0.9rem"}}>{inv.participantName}</div>
                 <div style={{color:"#6b7280",fontSize:"0.78rem",marginTop:2}}>
-                  Factura: <strong style={{color:"#ffffff"}}>{inv.invoiceNum}</strong>
+                  Factura: <strong style={{color:"#111827"}}>{inv.invoiceNum}</strong>
                   &nbsp;|&nbsp; Monto: <strong style={{color:"#d3172e"}}>${inv.amount} CAD</strong>
                   &nbsp;|&nbsp; Pts: <strong style={{color:"#16a34a"}}>{inv.points}</strong>
                 </div>
