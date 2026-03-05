@@ -159,7 +159,7 @@ const BRAND = {
   gray200: "#e5e7eb",
   gray400: "#9ca3af",
   gray600: "#4b5563",
-  gray900: "#ffffff",
+  gray900: "#111827",
   black: "#0a0a0a",
 };
 
@@ -284,7 +284,9 @@ const S = {
 
 const FontStyle = () => (
   <style>{`
-    * { box-sizing:border-box; }
+    * { box-sizing:border-box; color:inherit; }
+    body { color:#111827; background:#f9fafb; }
+    input, button, select, textarea { font-family:inherit; }
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
     input[type=number] { -moz-appearance:textfield; }
     ::-webkit-scrollbar { width:5px; }
