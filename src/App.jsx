@@ -776,6 +776,120 @@ function GroupTable({ grp, table, hasData, emptyMsg }) {
 // PARTICIPANT FORM
 const SUCURSALES = ["St-Hubert", "St-Laurent", "Brossard"];
 
+
+function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants, matches, invoices, preds }) {
+  const [editMode, setEditMode] = useState(false);
+  const [editNombre, setEditNombre] = useState(currentUser.nombre||"");
+  const [editApellido, setEditApellido] = useState(currentUser.apellido||"");
+  const [editTel, setEditTel] = useState(currentUser.telefono||"");
+  const [editPin, setEditPin] = useState("");
+  const [editPin2, setEditPin2] = useState("");
+  const [editErr, setEditErr] = useState("");
+  const [editOk, setEditOk] = useState(false);
+
+  const userInv = (invoices||[]).filter(inv=>inv.participantId===currentUser.id&&inv.status==="approved");
+  const invPts = userInv.reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount), 0);
+  let gamePts = 0;
+  matches.forEach(m=>{const pred=preds[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts!==null)gamePts+=pts;});
+  const {bonus:classPts} = calcClassificationBonus(preds, matches);
+  const total = gamePts + invPts + classPts;
+
+  const ranked = [...participants].map(p=>{
+    const ui=(invoices||[]).filter(i=>i.participantId===p.id&&i.status==="approved");
+    const ip=ui.reduce((s,i)=>s+calcInvoicePoints(i.amount),0);
+    let gp=0; matches.forEach(m=>{const pr=p.predictions?.[m.id];if(!pr)return;const pts=calcPoints(pr.home,pr.away,m.realHome,m.realAway);if(pts!==null)gp+=pts;});
+    const {bonus:cp}=calcClassificationBonus(p.predictions||{},matches);
+    return {...p,_total:gp+ip+cp};
+  }).sort((a,b)=>b._total-a._total);
+  const pos = ranked.findIndex(p=>p.id===currentUser.id)+1;
+
+  async function saveProfile() {
+    setEditErr("");
+    if(!editNombre.trim()||!editApellido.trim()){setEditErr("Nombre y apellido requeridos");return;}
+    if(editPin&&editPin.length<6){setEditErr("PIN minimo 6 digitos");return;}
+    if(editPin&&editPin!==editPin2){setEditErr("Los PINs no coinciden");return;}
+    const updated={...currentUser,nombre:editNombre.trim(),apellido:editApellido.trim(),name:editNombre.trim()+" "+editApellido.trim(),telefono:editTel.trim(),...(editPin?{pin:editPin}:{})};
+    const newList=[...participants.filter(p=>p.id!==currentUser.id),updated];
+    await setDoc(PARTICIPANTS_DOC,{list:newList});
+    setParticipants(newList);
+    setCurrentUser(updated);
+    try{localStorage.setItem("sl_user",JSON.stringify(updated));}catch(e){}
+    setEditOk(true);setEditMode(false);setTimeout(()=>setEditOk(false),3000);
+  }
+
+  return (
+    <div style={{maxWidth:480,margin:"0 auto"}}>
+      <div style={{background:"linear-gradient(135deg,#d3172e,#a01020)",borderRadius:16,padding:"24px 20px",marginBottom:16,color:"#fff",textAlign:"center"}}>
+        <div style={{width:64,height:64,borderRadius:"50%",background:"rgba(255,255,255,0.2)",margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.8rem",fontWeight:800}}>
+          {(currentUser.nombre||"?")[0].toUpperCase()}
+        </div>
+        <div style={{fontSize:"1.3rem",fontWeight:800}}>{currentUser.nombre} {currentUser.apellido}</div>
+        <div style={{fontSize:"0.85rem",opacity:0.85,marginTop:4}}>{currentUser.email}</div>
+        <div style={{fontSize:"0.8rem",opacity:0.75,marginTop:2}}>{currentUser.sucursal}</div>
+        <div style={{marginTop:16,display:"flex",justifyContent:"center",gap:20}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:"1.8rem",fontWeight:900}}>{total}</div>
+            <div style={{fontSize:"0.7rem",opacity:0.8}}>PUNTOS TOTAL</div>
+          </div>
+          <div style={{width:1,background:"rgba(255,255,255,0.3)"}}></div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:"1.8rem",fontWeight:900}}>#{pos}</div>
+            <div style={{fontSize:"0.7rem",opacity:0.8}}>POSICIÓN</div>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+        {[["Pronósticos",gamePts,"#2563eb"],["Clasificados",classPts,"#7c3aed"],["Facturas",invPts,"#16a34a"]].map(([l,v,c])=>(
+          <div key={l} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"12px 8px",textAlign:"center"}}>
+            <div style={{fontSize:"1.4rem",fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:"0.7rem",color:"#6b7280",marginTop:2}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
+      {!editMode ? (
+        <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:"0.95rem"}}>Mis datos</div>
+            <button style={{...S.btn("#2563eb",true),fontSize:"0.78rem",padding:"5px 12px"}} onClick={()=>setEditMode(true)}>Editar</button>
+          </div>
+          {[["Nombre",currentUser.nombre+" "+currentUser.apellido],["Correo",currentUser.email],["Teléfono",currentUser.telefono||"-"],["Sucursal",currentUser.sucursal||"-"]].map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #f3f4f6",fontSize:"0.85rem"}}>
+              <span style={{color:"#6b7280"}}>{l}</span>
+              <span style={{fontWeight:600,color:"#111827"}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
+          <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:12}}>Editar datos</div>
+          {editErr && <div style={{color:"#e74c3c",fontSize:"0.82rem",marginBottom:8}}>{editErr}</div>}
+          {[["Nombre",editNombre,setEditNombre],["Apellido",editApellido,setEditApellido],["Teléfono",editTel,setEditTel]].map(([l,v,sv])=>(
+            <div key={l} style={{marginBottom:10}}>
+              <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>{l.toUpperCase()}</label>
+              <input style={S.input} value={v} onChange={e=>sv(e.target.value)} />
+            </div>
+          ))}
+          <div style={{marginBottom:10}}>
+            <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>NUEVO PIN (dejar vacío para no cambiar)</label>
+            <input style={S.input} type="password" placeholder="Mínimo 6 dígitos" value={editPin} onChange={e=>setEditPin(e.target.value)} />
+          </div>
+          {editPin && (
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>CONFIRMAR NUEVO PIN</label>
+              <input style={S.input} type="password" value={editPin2} onChange={e=>setEditPin2(e.target.value)} />
+            </div>
+          )}
+          <div style={{display:"flex",gap:8,marginTop:4}}>
+            <button style={{...S.btn("#6b7280",true),flex:1}} onClick={()=>{setEditMode(false);setEditErr("");}}>Cancelar</button>
+            <button style={{...S.btn(),flex:1}} onClick={saveProfile}>Guardar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser }) {
   const [step, setStep] = useState(currentUser ? "form" : "login");
   const [isNew, setIsNew] = useState(false);
@@ -1067,112 +1181,9 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       )}
 
 
-      {activeTab==="perfil" && (()=>{
-        const userInv=(invoices||[]).filter(inv=>inv.participantId===currentUser.id&&inv.status==="approved");
-        const invPts=userInv.reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
-        let gamePts=0;
-        matches.forEach(m=>{const pred=preds[m.id];if(!pred)return;const pts=calcPoints(pred.home,pred.away,m.realHome,m.realAway);if(pts!==null)gamePts+=pts;});
-        const {bonus:classPts}=calcClassificationBonus(preds,matches);
-        const total=gamePts+invPts+classPts;
-        const ranked=[...participants].map(p=>{
-          const ui=(invoices||[]).filter(i=>i.participantId===p.id&&i.status==="approved");
-          const ip=ui.reduce((s,i)=>s+calcInvoicePoints(i.amount),0);
-          let gp=0; matches.forEach(m=>{const pr=p.predictions?.[m.id];if(!pr)return;const pts=calcPoints(pr.home,pr.away,m.realHome,m.realAway);if(pts!==null)gp+=pts;});
-          const {bonus:cp}=calcClassificationBonus(p.predictions||{},matches);
-          return {...p,_total:gp+ip+cp};
-        }).sort((a,b)=>b._total-a._total);
-        const pos=ranked.findIndex(p=>p.id===currentUser.id)+1;
-        const [editMode,setEditMode]=React.useState(false);
-        const [editNombre,setEditNombre]=React.useState(currentUser.nombre||"");
-        const [editApellido,setEditApellido]=React.useState(currentUser.apellido||"");
-        const [editTel,setEditTel]=React.useState(currentUser.telefono||"");
-        const [editPin,setEditPin]=React.useState("");
-        const [editPin2,setEditPin2]=React.useState("");
-        const [editErr,setEditErr]=React.useState("");
-        const [editOk,setEditOk]=React.useState(false);
-        async function saveProfile(){
-          setEditErr("");
-          if(!editNombre.trim()||!editApellido.trim()){setEditErr("Nombre y apellido requeridos");return;}
-          if(editPin&&editPin.length<6){setEditErr("PIN minimo 6 digitos");return;}
-          if(editPin&&editPin!==editPin2){setEditErr("Los PINs no coinciden");return;}
-          const updated={...currentUser,nombre:editNombre.trim(),apellido:editApellido.trim(),name:editNombre.trim()+" "+editApellido.trim(),telefono:editTel.trim(),...(editPin?{pin:editPin}:{})};
-          const newList=[...participants.filter(p=>p.id!==currentUser.id),updated];
-          await setDoc(PARTICIPANTS_DOC,{list:newList});
-          setParticipants(newList);
-          setCurrentUser(updated);
-          try{localStorage.setItem("sl_user",JSON.stringify(updated));}catch(e){}
-          setEditOk(true);setEditMode(false);setTimeout(()=>setEditOk(false),3000);
-        }
-        return (
-          <div style={{maxWidth:480,margin:"0 auto"}}>
-            <div style={{background:"linear-gradient(135deg,#d3172e,#a01020)",borderRadius:16,padding:"24px 20px",marginBottom:16,color:"#fff",textAlign:"center"}}>
-              <div style={{width:64,height:64,borderRadius:"50%",background:"rgba(255,255,255,0.2)",margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.8rem",fontWeight:800}}>
-                {(currentUser.nombre||"?")[0].toUpperCase()}
-              </div>
-              <div style={{fontSize:"1.3rem",fontWeight:800}}>{currentUser.nombre} {currentUser.apellido}</div>
-              <div style={{fontSize:"0.85rem",opacity:0.85,marginTop:4}}>{currentUser.email}</div>
-              <div style={{fontSize:"0.8rem",opacity:0.75,marginTop:2}}>{currentUser.sucursal}</div>
-              <div style={{marginTop:16,display:"flex",justifyContent:"center",gap:20}}>
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:"1.8rem",fontWeight:900}}>{total}</div>
-                  <div style={{fontSize:"0.7rem",opacity:0.8}}>PUNTOS TOTAL</div>
-                </div>
-                <div style={{width:1,background:"rgba(255,255,255,0.3)"}}></div>
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:"1.8rem",fontWeight:900}}>#{pos}</div>
-                  <div style={{fontSize:"0.7rem",opacity:0.8}}>POSICIÓN</div>
-                </div>
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
-              {[["Pronósticos",gamePts,"#2563eb"],["Clasificados",classPts,"#7c3aed"],["Facturas",invPts,"#16a34a"]].map(([l,v,c])=>(
-                <div key={l} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"12px 8px",textAlign:"center"}}>
-                  <div style={{fontSize:"1.4rem",fontWeight:800,color:c}}>{v}</div>
-                  <div style={{fontSize:"0.7rem",color:"#6b7280",marginTop:2}}>{l}</div>
-                </div>
-              ))}
-            </div>
-            {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
-            {!editMode ? (
-              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                  <div style={{fontWeight:700,fontSize:"0.95rem"}}>Mis datos</div>
-                  <button style={{...S.btn("#2563eb",true),fontSize:"0.78rem",padding:"5px 12px"}} onClick={()=>setEditMode(true)}>Editar</button>
-                </div>
-                {[["Nombre",currentUser.nombre+" "+currentUser.apellido],["Correo",currentUser.email],["Teléfono",currentUser.telefono||"-"],["Sucursal",currentUser.sucursal||"-"]].map(([l,v])=>(
-                  <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #f3f4f6",fontSize:"0.85rem"}}>
-                    <span style={{color:"#6b7280"}}>{l}</span>
-                    <span style={{fontWeight:600,color:"#111827"}}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
-                <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:12}}>Editar datos</div>
-                {editErr && <div style={{color:"#e74c3c",fontSize:"0.82rem",marginBottom:8}}>{editErr}</div>}
-                {[["Nombre",editNombre,setEditNombre],["Apellido",editApellido,setEditApellido],["Teléfono",editTel,setEditTel]].map(([l,v,sv])=>(
-                  <div key={l} style={{marginBottom:10}}>
-                    <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>{l.toUpperCase()}</label>
-                    <input style={S.input} value={v} onChange={e=>sv(e.target.value)} />
-                  </div>
-                ))}
-                <div style={{marginBottom:10}}>
-                  <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>NUEVO PIN (dejar vacío para no cambiar)</label>
-                  <input style={S.input} type="password" placeholder="Mínimo 6 dígitos" value={editPin} onChange={e=>setEditPin(e.target.value)} />
-                </div>
-                {editPin && <div style={{marginBottom:10}}>
-                  <label style={{fontSize:"0.75rem",color:BRAND.red,fontWeight:700,display:"block",marginBottom:4}}>CONFIRMAR NUEVO PIN</label>
-                  <input style={S.input} type="password" value={editPin2} onChange={e=>setEditPin2(e.target.value)} />
-                </div>}
-                <div style={{display:"flex",gap:8,marginTop:4}}>
-                  <button style={{...S.btn("#6b7280",true),flex:1}} onClick={()=>{setEditMode(false);setEditErr("");}}>Cancelar</button>
-                  <button style={{...S.btn(),flex:1}} onClick={saveProfile}>Guardar</button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {activeTab==="perfil" && (
+        <ProfileTab currentUser={currentUser} setCurrentUser={setCurrentUser} participants={participants} setParticipants={setParticipants} matches={matches} invoices={invoices} preds={preds} />
+      )}
 
       {activeTab==="tablas" && (
         <div className="fi">
