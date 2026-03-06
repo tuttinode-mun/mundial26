@@ -62,7 +62,8 @@ function calcInvoicePoints(amount) {
 }
 
 function isPhaseLocked(phase, adminUnlocked = {}) {
-  if (adminUnlocked[phase]) return false;
+  if (adminUnlocked[phase+"_forced"]) return true;  // admin forced lock
+  if (adminUnlocked[phase]) return false;            // admin manually unlocked
   const lockDate = LOCK_DATES[phase];
   if (!lockDate) return false;
   return new Date() >= lockDate;
@@ -1017,7 +1018,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-        {[["pronosticos","Mis Pronosticos"],["tablas","Tablas"],["facturas","Mis Facturas"]].map(([t,l])=>(
+        {[["pronosticos","Iniciar Sesión"],["tablas","Tablas"],["facturas","Mis Facturas"]].map(([t,l])=>(
           <button key={t} style={S.navBtn(activeTab===t)} onClick={()=>setActiveTab(t)}>{l}</button>
         ))}
       </div>
@@ -1235,7 +1236,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
   const [activePh, setActivePh] = useState("round32");
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState("results");
-  const ADMIN = "Mksaborlatino";
+  const ADMIN = "2026";
 
   const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
   const phaseLabels = {round32:"Ronda 32",round16:"Ronda 16",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
@@ -1431,34 +1432,47 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
 
       {activeTab==="locks" && (
         <div>
-          <p style={{color:"#6b7280",marginBottom:14,fontSize:"0.85rem"}}>Desbloquea una fase si hubo un error legitimo.</p>
+          <p style={{color:"#6b7280",marginBottom:14,fontSize:"0.85rem"}}>Bloquea o desbloquea manualmente cada fase para pruebas o correcciones.</p>
           {[
-            {phase:"groups",label:"Grupos",lockDate:"10 Jun 2026",color:"#1F618D"},
+            {phase:"groups",label:"Grupos",lockDate:"11 Jun 2026",color:"#1F618D"},
             {phase:"round32",label:"Ronda de 32",lockDate:"28 Jun 2026",color:"#0369a1"},
             {phase:"round16",label:"Ronda de 16",lockDate:"4 Jul 2026",color:"#7c3aed"},
             {phase:"quarters",label:"Cuartos de Final",lockDate:"9 Jul 2026",color:"#c0392b"},
             {phase:"semis",label:"Semifinales",lockDate:"14 Jul 2026",color:"#e67e22"},
-            {phase:"third",label:"Tercer Lugar",lockDate:"17 Jul 2026",color:"#2980b9"},
-            {phase:"final",label:"Gran Final",lockDate:"18 Jul 2026",color:"#d3172e"},
+            {phase:"third",label:"Tercer Lugar",lockDate:"18 Jul 2026",color:"#2980b9"},
+            {phase:"final",label:"Gran Final",lockDate:"19 Jul 2026",color:"#d3172e"},
           ].map(({phase,label,lockDate,color})=>{
+            const manLocked=!!adminUnlocked[phase+"_forced"];
             const autoLocked=isPhaseLocked(phase,{});
             const manUnlocked=!!adminUnlocked[phase];
-            const currentlyLocked=autoLocked&&!manUnlocked;
+            const isLocked = manLocked || (autoLocked && !manUnlocked);
             return (
               <div key={phase} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#f9fafb",border:"1px solid "+color+"44",borderRadius:10,padding:"12px 16px",marginBottom:8,flexWrap:"wrap",gap:8}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:"0.95rem"}}>{label}</div>
-                  <div style={{fontSize:"0.75rem",color:"#9ca3af",marginTop:2}}>Bloqueo: {lockDate}</div>
-                  <div style={{fontSize:"0.8rem",marginTop:3,color:currentlyLocked?"#e74c3c":"#2ecc71"}}>
-                    {currentlyLocked?"Bloqueado":autoLocked?"Desbloqueado por admin":"Abierto"}
+                  <div style={{fontWeight:700,fontSize:"0.95rem",color:"#111827"}}>{label}</div>
+                  <div style={{fontSize:"0.75rem",color:"#9ca3af",marginTop:2}}>Bloqueo automatico: {lockDate}</div>
+                  <div style={{fontSize:"0.8rem",marginTop:3,fontWeight:600,color:isLocked?"#e74c3c":"#16a34a"}}>
+                    {isLocked ? "🔒 BLOQUEADO" : "🔓 ABIERTO"}
                   </div>
                 </div>
-                {autoLocked && (
-                  <button style={{...S.btn(manUnlocked?"#27ae60":"#c0392b",true),fontSize:"0.78rem",padding:"6px 12px"}}
-                    onClick={()=>toggleUnlock(phase)}>
-                    {manUnlocked?"Volver a Bloquear":"Desbloquear"}
+                <div style={{display:"flex",gap:6}}>
+                  <button
+                    style={{...S.btn(isLocked?"#16a34a":"#e74c3c",true),fontSize:"0.78rem",padding:"6px 14px"}}
+                    onClick={async ()=>{
+                      let updated;
+                      if (isLocked) {
+                        // Unlock: set manUnlocked=true, remove forced lock
+                        updated = {...adminUnlocked, [phase]:true, [phase+"_forced"]:false};
+                      } else {
+                        // Lock: set forced lock, remove manual unlock
+                        updated = {...adminUnlocked, [phase]:false, [phase+"_forced"]:true};
+                      }
+                      setAdminUnlocked(updated);
+                      await setDoc(SETTINGS_DOC, {adminUnlocked: updated});
+                    }}>
+                    {isLocked ? "Desbloquear" : "Bloquear"}
                   </button>
-                )}
+                </div>
               </div>
             );
           })}
@@ -1592,7 +1606,7 @@ export default function App() {
 
   const tabs = [
     {id:"leaderboard", label:"Clasificacion"},
-    {id:"form", label:"Mis Pronosticos"},
+    {id:"form", label:"Iniciar Sesión"},
     {id:"fixture", label:"Fixture"},
     {id:"admin", label:"Admin"},
   ];
