@@ -766,10 +766,8 @@ function GroupTable({ grp, table, hasData, emptyMsg }) {
 // PARTICIPANT FORM
 const SUCURSALES = ["St-Hubert", "St-Laurent", "Brossard"];
 
-function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices }) {
-  // Restore session from localStorage
-  const savedUser = (() => { try { const s=localStorage.getItem("sl_user"); return s?JSON.parse(s):null; } catch(e){return null;} })();
-  const [step, setStep] = useState(savedUser ? "form" : "login");
+function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser }) {
+  const [step, setStep] = useState(currentUser ? "form" : "login");
   const [isNew, setIsNew] = useState(false);
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -782,14 +780,21 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
   const [regSucursal, setRegSucursal] = useState("");
   const [regPin, setRegPin] = useState("");
   const [regPin2, setRegPin2] = useState("");
-  const [currentUser, setCurrentUser] = useState(savedUser);
-  const [preds, setPreds] = useState(savedUser?.predictions||{});
+  const [preds, setPreds] = useState(currentUser?.predictions||{});
   const [activeGroup, setActiveGroup] = useState("A");
   const [activePhase, setActivePhase] = useState("groups");
   const [activePh, setActivePh] = useState("round32");
   const [activeTab, setActiveTab] = useState("pronosticos");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Sync preds if participants reload from Firebase
+  useEffect(() => {
+    if (currentUser) {
+      const fresh = participants.find(p=>p.id===currentUser.id);
+      if (fresh) setPreds(fresh.predictions||{});
+    }
+  }, [participants]);
 
   const groupMatches = matches.filter(m=>m.phase==="groups");
   const elimMatches = matches.filter(m=>m.phase!=="groups");
@@ -1572,6 +1577,10 @@ export default function App() {
   const [adminUnlocked, setAdminUnlocked] = useState({});
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Global session - survives tab navigation
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { const s=localStorage.getItem("sl_user"); return s?JSON.parse(s):null; } catch(e){return null;}
+  });
 
   useEffect(() => {
     const unsubP = onSnapshot(PARTICIPANTS_DOC, snap => {
@@ -1665,7 +1674,7 @@ export default function App() {
 
       <main style={S.main}>
         {view==="leaderboard" && <Leaderboard participants={participants} matches={matches} invoices={invoices} />}
-        {view==="form" && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} />}
+        {view==="form" && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} />}
         {view==="fixture" && <FixtureView matches={matches} />}
         {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} />}
       </main>
