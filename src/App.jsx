@@ -1501,6 +1501,73 @@ function resolveRound32Teams(matches) {
   });
 }
 
+
+function AdminParticipantRow({ p, i, participants, setParticipants, invoices, matches, removeParticipant }) {
+  const [editing, setEditing] = useState(false);
+  const [eNombre, setENombre] = useState(p.nombre||p.name||"");
+  const [eApellido, setEApellido] = useState(p.apellido||"");
+  const [eTel, setETel] = useState(p.telefono||"");
+  const [ePin, setEPin] = useState("");
+
+  async function saveEdit() {
+    const updated = {...p, nombre:eNombre.trim(), apellido:eApellido.trim(), name:eNombre.trim()+" "+eApellido.trim(), telefono:eTel.trim(), ...(ePin.length>=6?{pin:ePin}:{})};
+    const newList = [...participants.filter(x=>x.id!==p.id), updated];
+    await setDoc(PARTICIPANTS_DOC, {list: newList});
+    setParticipants(newList);
+    setEditing(false);
+  }
+
+  return (
+    <div style={{...S.leaderRow(i), flexDirection:"column", alignItems:"stretch", gap:6}}>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <span style={{color:"#9ca3af", fontWeight:700, minWidth:24}}>#{i+1}</span>
+          <div>
+            <div style={{fontWeight:700, color:BRAND.gray900}}>{p.name}</div>
+            <div style={{fontSize:"0.72rem", color:"#9ca3af"}}>
+              {p.email && <span>{p.email} &nbsp;|&nbsp; </span>}
+              {p.sucursal && <span style={{color:BRAND.red, fontWeight:600}}>{p.sucursal} &nbsp;|&nbsp; </span>}
+              {Object.keys(p.predictions||{}).length} pronosticos &nbsp;|&nbsp; {p._totalInv} facturas
+              {p._invPts>0 && <span style={{color:BRAND.red}}> | +{p._invPts}pts</span>}
+              {p._classPts>0 && <span style={{color:"#7c3aed"}}> | +{p._classPts}pts</span>}
+            </div>
+          </div>
+        </div>
+        <div style={{display:"flex", alignItems:"center", gap:6}}>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:"1.3rem", fontWeight:800, color:BRAND.red}}>{p._total}</div>
+            <div style={{fontSize:"0.68rem", color:"#9ca3af"}}>pts</div>
+          </div>
+          <button onClick={()=>setEditing(e=>!e)}
+            style={{background:editing?"#f3f4f6":"transparent", border:"1px solid #2563eb44", color:"#2563eb", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:"0.78rem"}}>
+            ✏️
+          </button>
+          <button onClick={()=>removeParticipant(p.id)}
+            style={{background:"transparent", border:"1px solid #dc262644", color:"#dc2626", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:"0.78rem"}}>
+            X
+          </button>
+        </div>
+      </div>
+      {editing && (
+        <div style={{background:"#f9fafb", borderRadius:8, padding:"10px 12px", display:"flex", flexWrap:"wrap", gap:8, alignItems:"flex-end"}}>
+          {[["Nombre",eNombre,setENombre],["Apellido",eApellido,setEApellido],["Teléfono",eTel,setETel]].map(([l,v,sv])=>(
+            <div key={l} style={{flex:"1 1 120px"}}>
+              <label style={{fontSize:"0.7rem", color:"#6b7280", display:"block", marginBottom:3}}>{l}</label>
+              <input style={{...S.input, padding:"5px 8px", fontSize:"0.82rem"}} value={v} onChange={e=>sv(e.target.value)} />
+            </div>
+          ))}
+          <div style={{flex:"1 1 120px"}}>
+            <label style={{fontSize:"0.7rem", color:"#6b7280", display:"block", marginBottom:3}}>Nuevo PIN</label>
+            <input style={{...S.input, padding:"5px 8px", fontSize:"0.82rem"}} type="password" placeholder="min 6 dígitos" value={ePin} onChange={e=>setEPin(e.target.value)} />
+          </div>
+          <button style={{...S.btn(), padding:"6px 14px", fontSize:"0.82rem"}} onClick={saveEdit}>Guardar</button>
+          <button style={{...S.btn("#6b7280",true), padding:"6px 10px", fontSize:"0.82rem"}} onClick={()=>setEditing(false)}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ADMIN PANEL
 function AdminPanel({ matches, setMatches, participants, setParticipants, adminUnlocked, setAdminUnlocked, invoices, setInvoices }) {
   const [authed, setAuthed] = useState(false);
@@ -1804,69 +1871,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
             const {bonus:classPts}=calcClassificationBonus(p.predictions,matches);
             return {...p,_total:gamePts+invPts+classPts,_invPts:invPts,_classPts:classPts,_exact:exact,_correct:correct,_totalInv:totalInv};
           }).sort((a,b)=>b._total-a._total).map((p,i)=>(
-              {(()=>{
-                const [editing,setEditing]=React.useState(false);
-                const [eNombre,setENombre]=React.useState(p.nombre||p.name||"");
-                const [eApellido,setEApellido]=React.useState(p.apellido||"");
-                const [eTel,setETel]=React.useState(p.telefono||"");
-                const [ePin,setEPin]=React.useState("");
-                async function saveEdit(){
-                  const updated={...p,nombre:eNombre.trim(),apellido:eApellido.trim(),name:eNombre.trim()+" "+eApellido.trim(),telefono:eTel.trim(),...(ePin.length>=6?{pin:ePin}:{})};
-                  const newList=[...participants.filter(x=>x.id!==p.id),updated];
-                  await setDoc(PARTICIPANTS_DOC,{list:newList});
-                  setParticipants(newList);
-                  setEditing(false);
-                }
-                return (
-                  <div key={p.id} style={{...S.leaderRow(i),flexDirection:"column",alignItems:"stretch",gap:6}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10}}>
-                        <span style={{color:"#9ca3af",fontWeight:700,minWidth:24}}>#{i+1}</span>
-                        <div>
-                          <div style={{fontWeight:700,color:BRAND.gray900}}>{p.name}</div>
-                          <div style={{fontSize:"0.72rem",color:"#9ca3af"}}>
-                            {p.email && <span>{p.email} &nbsp;|&nbsp; </span>}
-                            {p.sucursal && <span style={{color:BRAND.red,fontWeight:600}}>{p.sucursal} &nbsp;|&nbsp; </span>}
-                            {Object.keys(p.predictions||{}).length} pronosticos &nbsp;|&nbsp; {p._totalInv} facturas
-                            {p._invPts>0 && <span style={{color:BRAND.red}}> | +{p._invPts}pts</span>}
-                            {p._classPts>0 && <span style={{color:"#7c3aed"}}> | +{p._classPts}pts</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:"1.3rem",fontWeight:800,color:BRAND.red}}>{p._total}</div>
-                          <div style={{fontSize:"0.68rem",color:"#9ca3af"}}>pts</div>
-                        </div>
-                        <button onClick={()=>setEditing(e=>!e)}
-                          style={{background:editing?"#f3f4f6":"transparent",border:"1px solid #2563eb44",color:"#2563eb",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:"0.78rem"}}>
-                          ✏️
-                        </button>
-                        <button onClick={()=>removeParticipant(p.id)}
-                          style={{background:"transparent",border:"1px solid #dc262644",color:"#dc2626",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:"0.78rem"}}>
-                          X
-                        </button>
-                      </div>
-                    </div>
-                    {editing && (
-                      <div style={{background:"#f9fafb",borderRadius:8,padding:"10px 12px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"flex-end"}}>
-                        {[["Nombre",eNombre,setENombre],["Apellido",eApellido,setEApellido],["Teléfono",eTel,setETel]].map(([l,v,sv])=>(
-                          <div key={l} style={{flex:"1 1 120px"}}>
-                            <label style={{fontSize:"0.7rem",color:"#6b7280",display:"block",marginBottom:3}}>{l}</label>
-                            <input style={{...S.input,padding:"5px 8px",fontSize:"0.82rem"}} value={v} onChange={e=>sv(e.target.value)} />
-                          </div>
-                        ))}
-                        <div style={{flex:"1 1 120px"}}>
-                          <label style={{fontSize:"0.7rem",color:"#6b7280",display:"block",marginBottom:3}}>Nuevo PIN</label>
-                          <input style={{...S.input,padding:"5px 8px",fontSize:"0.82rem"}} type="password" placeholder="min 6 dígitos" value={ePin} onChange={e=>setEPin(e.target.value)} />
-                        </div>
-                        <button style={{...S.btn(),padding:"6px 14px",fontSize:"0.82rem"}} onClick={saveEdit}>Guardar</button>
-                        <button style={{...S.btn("#6b7280",true),padding:"6px 10px",fontSize:"0.82rem"}} onClick={()=>setEditing(false)}>✕</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+            <AdminParticipantRow key={p.id} p={p} i={i} participants={participants} setParticipants={setParticipants} invoices={invoices} matches={matches} removeParticipant={removeParticipant} />
           ))}
         </div>
       )}
