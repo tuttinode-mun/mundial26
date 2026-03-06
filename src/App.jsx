@@ -1235,7 +1235,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
   const [activePh, setActivePh] = useState("round32");
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState("results");
-  const ADMIN = "2026";
+  const ADMIN = "Mksaborlatino";
 
   const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
   const phaseLabels = {round32:"Ronda 32",round16:"Ronda 16",quarters:"Cuartos de Final",semis:"Semifinales",third:"Tercer Lugar",final:"Gran Final"};
