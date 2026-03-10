@@ -826,12 +826,7 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
         <div style={{fontSize:"1.3rem",fontWeight:800}}>{currentUser.nombre} {currentUser.apellido}</div>
         <div style={{fontSize:"0.85rem",opacity:0.85,marginTop:4}}>{currentUser.email}</div>
         <div style={{fontSize:"0.8rem",opacity:0.75,marginTop:2}}>{currentUser.sucursal}</div>
-        <div style={{marginTop:16,display:"flex",justifyContent:"center",gap:20}}>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:"1.8rem",fontWeight:900}}>{total}</div>
-            <div style={{fontSize:"0.7rem",opacity:0.8}}>PUNTOS TOTAL</div>
-          </div>
-          <div style={{width:1,background:"rgba(255,255,255,0.3)"}}></div>
+        <div style={{marginTop:12,display:"flex",justifyContent:"center"}}>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:"1.8rem",fontWeight:900}}>#{pos}</div>
             <div style={{fontSize:"0.7rem",opacity:0.8}}>POSICIÓN</div>
@@ -1944,8 +1939,8 @@ export default function App() {
   }, []);
 
   const tabs = [
-    {id:"leaderboard", label:"Clasificacion"},
     {id:"predictions", label:"Inicio"},
+    {id:"leaderboard", label:"Reglamento"},
     {id:"fixture", label:"Resultados"},
     ...(isAdmin ? [{id:"admin", label:"Admin"}] : []),
   ];
