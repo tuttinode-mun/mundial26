@@ -890,8 +890,8 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
   );
 }
 
-function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser }) {
-  const [step, setStep] = useState(currentUser ? "form" : "login");
+function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser, initialStep }) {
+  const [step, setStep] = useState(initialStep || (currentUser ? "form" : "login"));
   const [isNew, setIsNew] = useState(false);
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -1941,7 +1941,7 @@ export default function App() {
 
   const tabs = [
     {id:"leaderboard", label:"Clasificacion"},
-    {id:"form", label:"Inicio"},
+    {id:"predictions", label:"Inicio"},
     {id:"fixture", label:"Resultados"},
     ...(isAdmin ? [{id:"admin", label:"Admin"}] : []),
   ];
@@ -1990,20 +1990,19 @@ export default function App() {
             {!currentUser ? (
               <button
                 title="Iniciar Sesion"
-                onClick={()=>setView("form")}
-                style={{background:"none",border:"none",cursor:"pointer",padding:"6px 8px",display:"flex",alignItems:"center",color:view==="form"?BRAND.red:"#6b7280",borderRadius:6,transition:"color 0.15s",marginLeft:2}}
+                onClick={()=>setView("login")}
+                style={{background:"none",border:"none",cursor:"pointer",padding:"6px 8px",display:"flex",alignItems:"center",color:view==="login"?BRAND.red:"#6b7280",borderRadius:6,transition:"color 0.15s",marginLeft:2}}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                  <polyline points="10 17 15 12 10 7"/>
-                  <line x1="15" y1="12" x2="3" y2="12"/>
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                 </svg>
               </button>
             ) : (
               <button
                 title={currentUser.name}
-                onClick={()=>setView("form")}
-                style={{background:view==="form"?BRAND.red:"#e5e7eb",border:"none",cursor:"pointer",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"0.85rem",color:view==="form"?"#fff":BRAND.gray900,marginLeft:4,transition:"background 0.15s"}}
+                onClick={()=>setView("login")}
+                style={{background:(view==="login"||view==="predictions")?BRAND.red:"#e5e7eb",border:"none",cursor:"pointer",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"0.85rem",color:(view==="login"||view==="predictions")?"#fff":BRAND.gray900,marginLeft:4,transition:"background 0.15s"}}
               >
                 {(currentUser.nombre||currentUser.name||"?")[0].toUpperCase()}
               </button>
@@ -2017,7 +2016,7 @@ export default function App() {
 
       <main style={S.main}>
         {view==="leaderboard" && <Leaderboard participants={participants} matches={matches} invoices={invoices} />}
-        {view==="form" && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} />}
+        {(view==="predictions"||view==="login") && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} initialStep={view==="login"?"login":undefined} />}
         {view==="fixture" && <FixtureView matches={matches} />}
         {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} />}
       </main>
