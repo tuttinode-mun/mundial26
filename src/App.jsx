@@ -838,18 +838,21 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
           </div>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
-        {[["Pronósticos",gamePts,"#2563eb"],["Clasificados",classPts,"#7c3aed"],["Facturas",invPts,"#16a34a"]].map(([l,v,c])=>(
-          <div key={l} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"12px 8px",textAlign:"center"}}>
-            <div style={{fontSize:"1.4rem",fontWeight:800,color:c}}>{v}</div>
-            <div style={{fontSize:"0.7rem",color:"#6b7280",marginTop:2}}>{l}</div>
-          </div>
-        ))}
+      <div style={{borderRadius:14,overflow:"hidden",border:"1px solid #e5e7eb",marginBottom:16}}>
+        <div style={{background:"linear-gradient(90deg,#d3172e,#a01020)",padding:"14px 20px",textAlign:"center"}}>
+          <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,0.8)",letterSpacing:3,fontWeight:700,marginBottom:4}}>TOTAL DE PUNTOS</div>
+          <div style={{fontSize:"2.6rem",fontWeight:900,color:"#fff",lineHeight:1}}>{total}</div>
+        </div>
+        <div style={{background:"#fff",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",padding:"14px 10px"}}>
+          {[["Pronósticos",gamePts,"#2563eb"],["Clasificados",classPts,"#7c3aed"],["Facturas",invPts,"#16a34a"]].map(([l,v,c],i,arr)=>(
+            <div key={l} style={{textAlign:"center",borderRight:i<arr.length-1?"1px solid #f3f4f6":"none"}}>
+              <div style={{fontSize:"1.5rem",fontWeight:800,color:c}}>{v}</div>
+              <div style={{fontSize:"0.68rem",color:"#6b7280",marginTop:3}}>{l}</div>
+            </div>
+          ))}
+        </div>
       </div>
       {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
-      <div style={{marginTop:20}}>
-        <InvoiceForm currentUser={currentUser} invoices={invoices} setInvoices={setInvoices} />
-      </div>
       {!editMode ? (
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -889,6 +892,9 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
           </div>
         </div>
       )}
+      <div style={{marginTop:20}}>
+        <InvoiceForm currentUser={currentUser} invoices={invoices} setInvoices={setInvoices} />
+      </div>
     </div>
   );
 }
