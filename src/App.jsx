@@ -62,12 +62,16 @@ function calcInvoicePoints(amount) {
   return 12;
 }
 
+function getNow(adminUnlocked = {}) {
+  return adminUnlocked.simDate ? new Date(adminUnlocked.simDate) : new Date();
+}
+
 function isPhaseLocked(phase, adminUnlocked = {}) {
   if (adminUnlocked[phase+"_forced"]) return true;
   if (adminUnlocked[phase]) return false;
   const lockDate = LOCK_DATES[phase];
   if (!lockDate) return false;
-  return new Date() >= lockDate;
+  return getNow(adminUnlocked) >= lockDate;
 }
 
 function isMatchLocked(match, adminUnlocked = {}) {
@@ -76,12 +80,12 @@ function isMatchLocked(match, adminUnlocked = {}) {
   if (match.phase === "groups") {
     if (adminUnlocked["groups"]) return false;
     if (adminUnlocked["groups_forced"]) return true;
-    return new Date() >= LOCK_DATES["groups"];
+    return getNow(adminUnlocked) >= LOCK_DATES["groups"];
   }
   // Elimination: lock 24 hours before each match kickoff
   if (adminUnlocked[match.phase]) return false;
   if (adminUnlocked[match.phase+"_forced"]) return true;
-  if (match.lockTime) return new Date() >= new Date(new Date(match.lockTime).getTime() - 24*60*60*1000);
+  if (match.lockTime) return getNow(adminUnlocked) >= new Date(new Date(match.lockTime).getTime() - 24*60*60*1000);
   return isPhaseLocked(match.phase, adminUnlocked);
 }
 
@@ -1602,6 +1606,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
   const [activePh, setActivePh] = useState("round32");
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState("results");
+  const [simDate, setSimDate] = useState(adminUnlocked.simDate||"");
   const ADMIN = "2026";
 
   const phaseColors = {round32:"#0369a1",round16:"#7c3aed",quarters:"#c0392b",semis:"#e67e22",third:"#2980b9",final:"#d3172e"};
@@ -1803,6 +1808,47 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
       {activeTab==="locks" && (
         <div>
           <p style={{color:"#6b7280",marginBottom:14,fontSize:"0.85rem"}}>Bloquea o desbloquea manualmente cada fase para pruebas o correcciones.</p>
+
+          {/* SIMULADOR DE FECHA */}
+          <div style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+            <div style={{fontWeight:700,fontSize:"0.9rem",color:"#92400e",marginBottom:6}}>🧪 Simulador de Fecha</div>
+            <div style={{fontSize:"0.8rem",color:"#78350f",marginBottom:10}}>
+              Establece una fecha simulada para probar los bloqueos sin esperar las fechas reales. Deja vacío para usar la fecha real.
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <input
+                type="datetime-local"
+                style={{...S.input,marginBottom:0,flex:"1 1 200px",fontSize:"0.85rem"}}
+                value={simDate}
+                onChange={e=>setSimDate(e.target.value)}
+              />
+              <button style={{...S.btn("#f59e0b"),fontSize:"0.8rem",padding:"7px 14px",whiteSpace:"nowrap"}}
+                onClick={async ()=>{
+                  const updated = {...adminUnlocked, simDate: simDate||null};
+                  setAdminUnlocked(updated);
+                  await setDoc(SETTINGS_DOC, {adminUnlocked: updated});
+                  alert(simDate ? "✅ Fecha simulada: "+new Date(simDate).toLocaleString() : "✅ Usando fecha real del sistema");
+                }}>
+                {simDate ? "Activar Simulación" : "Usar Fecha Real"}
+              </button>
+              {adminUnlocked.simDate && (
+                <button style={{...S.btn("#6b7280",true),fontSize:"0.8rem",padding:"7px 14px"}}
+                  onClick={async ()=>{
+                    setSimDate("");
+                    const updated = {...adminUnlocked, simDate: null};
+                    setAdminUnlocked(updated);
+                    await setDoc(SETTINGS_DOC, {adminUnlocked: updated});
+                  }}>
+                  Quitar Simulación
+                </button>
+              )}
+            </div>
+            {adminUnlocked.simDate && (
+              <div style={{marginTop:8,fontSize:"0.78rem",color:"#b45309",fontWeight:600}}>
+                ⚠️ Fecha simulada activa: {new Date(adminUnlocked.simDate).toLocaleString()}
+              </div>
+            )}
+          </div>
           {[
             {phase:"groups",label:"Grupos",lockDate:"11 Jun 2026",color:"#1F618D"},
             {phase:"round32",label:"Ronda de 32",lockDate:"28 Jun 2026",color:"#0369a1"},
