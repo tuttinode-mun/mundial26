@@ -947,7 +947,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
     if (!locked) {
       const d = LOCK_DATES[phase];
       if (d) {
-        const diff = Math.ceil((d-new Date())/(1000*60*60*24));
+        const diff = Math.ceil((d-getNow(adminUnlocked))/(1000*60*60*24));
         if (diff>0) return {locked:false, msg:"Abierto - se bloquea en "+diff+" dia"+(diff!==1?"s":"")};
       }
       return {locked:false, msg:"Abierto"};
@@ -1859,7 +1859,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
             {phase:"final",label:"Gran Final",lockDate:"19 Jul 2026",color:"#d3172e"},
           ].map(({phase,label,lockDate,color})=>{
             const manLocked=!!adminUnlocked[phase+"_forced"];
-            const autoLocked=isPhaseLocked(phase,{});
+            const autoLocked=isPhaseLocked(phase,adminUnlocked);
             const manUnlocked=!!adminUnlocked[phase];
             const isLocked = manLocked || (autoLocked && !manUnlocked);
             return (
