@@ -17,6 +17,7 @@ const PARTICIPANTS_DOC = doc(db, "tournament", "participants");
 const MATCHES_DOC = doc(db, "tournament", "matches");
 const SETTINGS_DOC = doc(db, "tournament", "settings");
 const INVOICES_DOC = doc(db, "tournament", "invoices");
+const PIN_REQUESTS_DOC = doc(db, "tournament", "pinRequests");
 
 // GROUPS
 const GROUPS = {
@@ -1082,13 +1083,22 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
             <button style={{...S.btn(),width:"100%"}} onClick={handleLogin}>Entrar</button>
             <button style={{...S.btn("#6b7280",true),width:"100%",marginTop:8}} onClick={()=>{setIsNew(true);setError("");}}>Crear cuenta nueva</button>
             <button style={{background:"transparent",border:"none",color:"#2563eb",fontSize:"0.82rem",marginTop:10,cursor:"pointer",textDecoration:"underline",width:"100%",textAlign:"center"}}
-              onClick={()=>{
+              onClick={async ()=>{
                 const email=loginEmail.trim().toLowerCase();
                 if(!email||!email.includes("@")){setError("Ingresa tu correo primero para recuperar el PIN");return;}
                 const user=participants.find(p=>p.email&&p.email.toLowerCase()===email);
                 if(!user){setError("No encontramos ese correo registrado");return;}
                 setError("");
-                alert("Tu PIN es: "+user.pin+"\n\nPor seguridad te recomendamos cambiarlo desde Mi Perfil.");
+                try {
+                  const snap = await import("firebase/firestore").then(({getDoc})=>getDoc(PIN_REQUESTS_DOC));
+                  const existing = snap.exists() ? snap.data().list||[] : [];
+                  const already = existing.find(r=>r.email===email&&r.status==="pending");
+                  if(already){setError("Ya tienes una solicitud pendiente. El administrador te contactará pronto.");return;}
+                  const newReq = {id:Date.now(), email, name:user.name||user.nombre+" "+user.apellido, telefono:user.telefono||"", status:"pending", createdAt:new Date().toISOString()};
+                  await import("firebase/firestore").then(({setDoc})=>setDoc(PIN_REQUESTS_DOC,{list:[...existing,newReq]}));
+                  setError("");
+                  alert("✅ Solicitud enviada. El administrador revisará tu caso y te contactará para darte tu nuevo PIN.");
+                } catch(e){ setError("Error al enviar solicitud. Intenta de nuevo."); }
               }}>
               ¿Olvidaste tu PIN?
             </button>
@@ -1579,7 +1589,7 @@ function AdminParticipantRow({ p, i, participants, setParticipants, invoices, ma
 }
 
 // ADMIN PANEL
-function AdminPanel({ matches, setMatches, participants, setParticipants, adminUnlocked, setAdminUnlocked, invoices, setInvoices }) {
+function AdminPanel({ matches, setMatches, participants, setParticipants, adminUnlocked, setAdminUnlocked, invoices, setInvoices, pinRequests, setPinRequests }) {
   const [authed, setAuthed] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [activeGroup, setActiveGroup] = useState("A");
@@ -1595,6 +1605,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
   const elimMatches = matches.filter(m=>m.phase!=="groups");
   const phases = [...new Set(elimMatches.map(m=>m.phase))];
   const pendingInvoices = invoices.filter(inv=>inv.status==="pending");
+  const pendingPinReqs = (pinRequests||[]).filter(r=>r.status==="pending");
 
   function setResult(matchId, side, val) {
     const v = val===""?null:Math.max(0,parseInt(val)||0);
@@ -1655,7 +1666,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
     <div className="fi">
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
         <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-          {[["results","Resultados"],["invoices","Facturas"+(pendingInvoices.length>0?" ("+pendingInvoices.length+")":"")],["teams","Equipos"],["locks","Bloqueos"],["users","Participantes"]].map(([t,l])=>(
+          {[["results","Resultados"],["invoices","Facturas"+(pendingInvoices.length>0?" ("+pendingInvoices.length+")":"")],["pinreqs","PIN"+(pendingPinReqs.length>0?" ("+pendingPinReqs.length+")":"")],["teams","Equipos"],["locks","Bloqueos"],["users","Participantes"]].map(([t,l])=>(
             <button key={t} style={{...S.navBtn(activeTab===t),background:t==="invoices"&&pendingInvoices.length>0&&activeTab!==t?"#e67e2222":undefined}} onClick={()=>setActiveTab(t)}>{l}</button>
           ))}
         </div>
@@ -1833,6 +1844,62 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
         </div>
       )}
 
+      {activeTab==="pinreqs" && (
+        <div>
+          <div style={S.sectionTitle}>Solicitudes de Recuperación de PIN</div>
+          {pendingPinReqs.length===0 && (
+            <div style={{color:"#9ca3af",padding:20,textAlign:"center"}}>No hay solicitudes pendientes</div>
+          )}
+          {(pinRequests||[]).map(req=>(
+            <div key={req.id} style={{...S.card, marginBottom:10, borderLeft:"4px solid "+(req.status==="pending"?"#f59e0b":req.status==="resolved"?"#16a34a":"#9ca3af")}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:"0.95rem",color:"#111827"}}>{req.name}</div>
+                  <div style={{fontSize:"0.78rem",color:"#6b7280",marginTop:2}}>{req.email}</div>
+                  {req.telefono && <div style={{fontSize:"0.78rem",color:"#6b7280"}}>{req.telefono}</div>}
+                  <div style={{fontSize:"0.72rem",color:"#9ca3af",marginTop:4}}>{new Date(req.createdAt).toLocaleString()}</div>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <span style={{background:req.status==="pending"?"#fef3c7":req.status==="resolved"?"#f0fdf4":"#f3f4f6",color:req.status==="pending"?"#b45309":req.status==="resolved"?"#16a34a":"#9ca3af",borderRadius:20,padding:"3px 10px",fontSize:"0.72rem",fontWeight:700}}>
+                    {req.status==="pending"?"Pendiente":req.status==="resolved"?"Resuelto":"Descartado"}
+                  </span>
+                  {req.status==="pending" && (
+                    <>
+                      <button
+                        style={{...S.btn("#16a34a"),fontSize:"0.78rem",padding:"5px 12px"}}
+                        onClick={async ()=>{
+                          const user = participants.find(p=>p.email&&p.email.toLowerCase()===req.email.toLowerCase());
+                          if(!user){alert("Usuario no encontrado");return;}
+                          const newPin = "1234";
+                          const updatedUser = {...user, pin:newPin};
+                          const newParticipants = [...participants.filter(p=>p.id!==user.id), updatedUser];
+                          await setDoc(PARTICIPANTS_DOC, {list:newParticipants});
+                          setParticipants(newParticipants);
+                          const updatedReqs = (pinRequests||[]).map(r=>r.id===req.id?{...r,status:"resolved",resolvedAt:new Date().toISOString(),newPin}:r);
+                          await setDoc(PIN_REQUESTS_DOC, {list:updatedReqs});
+                          setPinRequests(updatedReqs);
+                          alert("✅ PIN reseteado a 1234 para "+req.name+". Notifica al usuario.");
+                        }}>
+                        Resetear PIN a 1234
+                      </button>
+                      <button
+                        style={{...S.btn("#6b7280",true),fontSize:"0.78rem",padding:"5px 10px"}}
+                        onClick={async ()=>{
+                          const updatedReqs = (pinRequests||[]).map(r=>r.id===req.id?{...r,status:"dismissed"}:r);
+                          await setDoc(PIN_REQUESTS_DOC, {list:updatedReqs});
+                          setPinRequests(updatedReqs);
+                        }}>
+                        Descartar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {activeTab==="users" && (
         <div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
@@ -1897,6 +1964,7 @@ export default function App() {
   const [participants, setParticipants] = useState([]);
   const [adminUnlocked, setAdminUnlocked] = useState({});
   const [invoices, setInvoices] = useState([]);
+  const [pinRequests, setPinRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   // Global session - survives tab navigation
   const [currentUser, setCurrentUser] = useState(() => {
@@ -1934,8 +2002,11 @@ export default function App() {
       if (snap.exists()) setInvoices(snap.data().list || []);
       setLoading(false);
     });
+    const unsubR = onSnapshot(PIN_REQUESTS_DOC, snap => {
+      if (snap.exists()) setPinRequests(snap.data().list || []);
+    });
     setTimeout(() => setLoading(false), 3000);
-    return () => { unsubP(); unsubM(); unsubS(); unsubI(); };
+    return () => { unsubP(); unsubM(); unsubS(); unsubI(); unsubR(); };
   }, []);
 
   const tabs = [
@@ -2017,7 +2088,7 @@ export default function App() {
         {view==="leaderboard" && <Leaderboard participants={participants} matches={matches} invoices={invoices} />}
         {(view==="predictions"||view==="login") && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} initialStep={view==="login"?"login":undefined} />}
         {view==="fixture" && <FixtureView matches={matches} />}
-        {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} />}
+        {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} pinRequests={pinRequests} setPinRequests={setPinRequests} />}
       </main>
     </div>
   );
