@@ -777,7 +777,7 @@ function GroupTable({ grp, table, hasData, emptyMsg }) {
 const SUCURSALES = ["St-Hubert", "St-Laurent", "Brossard"];
 
 
-function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants, matches, invoices, preds }) {
+function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants, matches, invoices, setInvoices, preds }) {
   const [editMode, setEditMode] = useState(false);
   const [editNombre, setEditNombre] = useState(currentUser.nombre||"");
   const [editApellido, setEditApellido] = useState(currentUser.apellido||"");
@@ -847,6 +847,9 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
         ))}
       </div>
       {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
+      <div style={{marginTop:20}}>
+        <InvoiceForm currentUser={currentUser} invoices={invoices} setInvoices={setInvoices} />
+      </div>
       {!editMode ? (
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -1171,18 +1174,13 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-        {[["pronosticos","Pronósticos"],["facturas","Mis Facturas"],["perfil","Mi Perfil"]].map(([t,l])=>(
+        {[["pronosticos","Pronósticos"],["perfil","Mi Perfil"]].map(([t,l])=>(
           <button key={t} style={S.navBtn(activeTab===t)} onClick={()=>setActiveTab(t)}>{l}</button>
         ))}
       </div>
 
-      {activeTab==="facturas" && (
-        <InvoiceForm currentUser={currentUser} invoices={invoices} setInvoices={setInvoices} />
-      )}
-
-
       {activeTab==="perfil" && (
-        <ProfileTab currentUser={currentUser} setCurrentUser={setCurrentUser} participants={participants} setParticipants={setParticipants} matches={matches} invoices={invoices} preds={preds} />
+        <ProfileTab currentUser={currentUser} setCurrentUser={setCurrentUser} participants={participants} setParticipants={setParticipants} matches={matches} invoices={invoices} setInvoices={setInvoices} preds={preds} />
       )}
 
       {activeTab==="tablas" && (
