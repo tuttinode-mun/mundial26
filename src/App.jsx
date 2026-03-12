@@ -711,6 +711,22 @@ function ReglamentoView() {
   );
 }
 
+// Helper: verifica si un participante tiene participación válida
+function getParticipationStatus(participantId, invoices) {
+  const myInv = (invoices||[]).filter(inv=>inv.participantId===participantId);
+  // Válida: $50+ con producto elegible Y aprobada
+  if (myInv.find(inv=>parseFloat(inv.amount)>=50 && inv.hasProduct && inv.status==="approved"))
+    return "valid";
+  // Pendiente: $50+ con producto elegible pero aún pendiente
+  if (myInv.find(inv=>parseFloat(inv.amount)>=50 && inv.hasProduct && inv.status==="pending"))
+    return "pending";
+  // Sin producto: tiene $50+ pero sin marcar producto elegible
+  if (myInv.find(inv=>parseFloat(inv.amount)>=50 && !inv.hasProduct))
+    return "no_product";
+  // Sin factura válida (incluye casos donde fue rechazada)
+  return "invalid";
+}
+
 function Leaderboard({ participants, matches, invoices, currentUser }) {
   const [activeTab, setActiveTab] = useState("tabla");
 
@@ -745,18 +761,33 @@ function Leaderboard({ participants, matches, invoices, currentUser }) {
 
       {activeTab==="top20" && (
         <div>
-          {currentUser && (()=>{
-            const myInv = (invoices||[]).filter(inv=>inv.participantId===currentUser.id);
-            const validInv = myInv.find(inv=>parseFloat(inv.amount)>=50 && inv.hasProduct);
-            if (validInv) return null;
+          {(()=>{
+            if (!currentUser) return null;
+            const ps = getParticipationStatus(currentUser.id, invoices);
+            if (ps==="valid") return (
+              <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{fontSize:"1.2rem"}}>✅</span>
+                <div style={{fontWeight:700,fontSize:"0.85rem",color:"#166534"}}>Tu participación es válida — factura aprobada con producto elegible.</div>
+              </div>
+            );
+            if (ps==="pending") return (
+              <div style={{background:"#eff6ff",border:"1px solid #93c5fd",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"flex-start"}}>
+                <span style={{fontSize:"1.2rem",flexShrink:0}}>🕐</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:"0.85rem",color:"#1e40af",marginBottom:2}}>Factura pendiente de aprobación</div>
+                  <div style={{fontSize:"0.8rem",color:"#1e40af",lineHeight:1.5}}>Tu factura de $50+ con producto elegible está siendo revisada por el administrador.</div>
+                </div>
+              </div>
+            );
+            const msg = ps==="no_product"
+              ? "Tienes una factura de $50+ pero no confirmaste que incluye un producto elegible. Edita tu factura en Mi Perfil."
+              : "Registra una factura de $50 o más que incluya alguno de los productos elegibles* para validar tu participación.";
             return (
               <div style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"flex-start"}}>
                 <span style={{fontSize:"1.2rem",flexShrink:0}}>⚠️</span>
                 <div>
                   <div style={{fontWeight:700,fontSize:"0.85rem",color:"#92400e",marginBottom:2}}>Participación no válida</div>
-                  <div style={{fontSize:"0.8rem",color:"#92400e",lineHeight:1.5}}>
-                    Registra una factura de <strong>$50 o más</strong> que incluya alguno de los <strong>productos elegibles*</strong> para que tu participación sea válida.
-                  </div>
+                  <div style={{fontSize:"0.8rem",color:"#92400e",lineHeight:1.5}}>{msg}</div>
                 </div>
               </div>
             );
@@ -1076,35 +1107,19 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
       </div>
       {/* INDICADOR DE PARTICIPACIÓN VÁLIDA */}
       {(()=>{
-        const myInv = (invoices||[]).filter(inv=>inv.participantId===currentUser.id);
-        const validInv = myInv.find(inv=>parseFloat(inv.amount)>=50 && inv.hasProduct);
-        const has50 = myInv.find(inv=>parseFloat(inv.amount)>=50);
-        let status, color, bg, border, icon, msg;
-        if (validInv) {
-          status="valid"; icon="✅"; color="#166534"; bg="#f0fdf4"; border="#86efac";
-          msg = validInv.status==="approved"
-            ? "Participación válida — factura aprobada con producto participante."
-            : "Factura con producto participante enviada. Pendiente de aprobación del administrador.";
-        } else if (has50) {
-          status="warn"; icon="⚠️"; color="#92400e"; bg="#fffbeb"; border="#f59e0b";
-          msg="Tienes una factura de $50+, pero no indicaste que incluye un producto participante. Sin esto tu participación no es válida.";
-        } else {
-          status="error"; icon="🔴"; color="#991b1b"; bg="#fff5f5"; border="#fca5a5";
-          msg="No tienes una factura de $50 o más. Necesitas al menos una compra de $50+ con producto participante para que tu participación sea válida.";
-        }
+        const ps = getParticipationStatus(currentUser.id, invoices);
+        const cfg = {
+          valid:      { icon:"✅", color:"#166534", bg:"#f0fdf4", border:"#86efac", title:"Participación válida",            msg:"Factura aprobada con producto elegible. Estás participando correctamente." },
+          pending:    { icon:"🕐", color:"#1e40af", bg:"#eff6ff", border:"#93c5fd", title:"Pendiente de aprobación",         msg:"Tu factura de $50+ con producto elegible está siendo revisada por el administrador." },
+          no_product: { icon:"⚠️", color:"#92400e", bg:"#fffbeb", border:"#f59e0b", title:"Producto elegible no confirmado", msg:"Tienes una factura de $50+ pero no confirmaste que incluye un producto elegible. Sin esto tu participación no es válida." },
+          invalid:    { icon:"🔴", color:"#991b1b", bg:"#fff5f5", border:"#fca5a5", title:"Participación no válida",         msg:"Necesitas una factura de $50+ con producto elegible* aprobada para participar. Registra tu compra abajo." },
+        }[ps];
         return (
-          <div style={{background:bg,border:"1px solid "+border,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
-            <span style={{fontSize:"1.2rem",flexShrink:0}}>{icon}</span>
+          <div style={{background:cfg.bg,border:"1px solid "+cfg.border,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{fontSize:"1.2rem",flexShrink:0}}>{cfg.icon}</span>
             <div>
-              <div style={{fontWeight:700,fontSize:"0.85rem",color,marginBottom:3}}>
-                {status==="valid"?"Participación válida":status==="warn"?"Producto participante no confirmado":"Sin factura válida"}
-              </div>
-              <div style={{fontSize:"0.78rem",color,lineHeight:1.5}}>{msg}</div>
-              {status!=="valid" && (
-                <div style={{fontSize:"0.72rem",color:"#6b7280",marginTop:4}}>
-                  Registra una factura de $50+ con producto participante* en la sección de abajo.
-                </div>
-              )}
+              <div style={{fontWeight:700,fontSize:"0.85rem",color:cfg.color,marginBottom:3}}>{cfg.title}</div>
+              <div style={{fontSize:"0.78rem",color:cfg.color,lineHeight:1.5}}>{cfg.msg}</div>
             </div>
           </div>
         );
