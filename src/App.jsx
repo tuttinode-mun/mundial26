@@ -1539,7 +1539,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
         <div style={{color:"#6b7280",marginBottom:16}}>Hola <strong style={{color:"#111827"}}>{currentUser?.name}</strong></div>
         <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           <button style={S.btn()} onClick={()=>setStep("form")}>Editar Pronosticos</button>
-          <button style={S.btn("#6b7280",true)} onClick={()=>{setStep("login");try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");}}>Cambiar Usuario</button>
+          <button style={S.btn("#6b7280",true)} onClick={()=>{setStep("login");setCurrentUser(null);try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");setView?.("clasificacion");}}>Cambiar Usuario</button>
         </div>
       </div>
     </div>
@@ -1553,7 +1553,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
           <button style={{...S.btn("#27ae60"),fontSize:"0.8rem",padding:"6px 14px"}} onClick={handleSave} disabled={saving}>
             {saving?"Guardando...":"Guardar Todo"}
           </button>
-          <button style={{...S.btn("#6b7280",true),fontSize:"0.8rem",padding:"6px 12px"}} onClick={()=>{setStep("login");try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");}}>Salir</button>
+          <button style={{...S.btn("#6b7280",true),fontSize:"0.8rem",padding:"6px 12px"}} onClick={()=>{setStep("login");setCurrentUser(null);try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");setView?.("clasificacion");}}>Salir</button>
         </div>
       </div>
 
@@ -2573,7 +2573,7 @@ export default function App() {
             ) : (
               <button
                 title={currentUser.name}
-                onClick={()=>setView("login")}
+                onClick={()=>setView("predictions")}
                 style={{background:(view==="login"||view==="predictions")?BRAND.red:"#e5e7eb",border:"none",cursor:"pointer",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"0.85rem",color:(view==="login"||view==="predictions")?"#fff":BRAND.gray900,marginLeft:4,transition:"background 0.15s"}}
               >
                 {(currentUser.nombre||currentUser.name||"?")[0].toUpperCase()}
