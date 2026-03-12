@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
 
@@ -18,6 +18,23 @@ const MATCHES_DOC = doc(db, "tournament", "matches");
 const SETTINGS_DOC = doc(db, "tournament", "settings");
 const INVOICES_DOC = doc(db, "tournament", "invoices");
 const PIN_REQUESTS_DOC = doc(db, "tournament", "pinRequests");
+
+// ERROR BOUNDARY — catches silent white screens
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{padding:30,fontFamily:"monospace",color:"#dc2626",background:"#fff5f5",minHeight:"100vh"}}>
+        <h2>⚠️ Error en la aplicación</h2>
+        <pre style={{whiteSpace:"pre-wrap",fontSize:"0.8rem"}}>{this.state.error?.message}</pre>
+        <pre style={{whiteSpace:"pre-wrap",fontSize:"0.7rem",color:"#6b7280"}}>{this.state.error?.stack}</pre>
+        <button onClick={()=>window.location.reload()} style={{marginTop:16,padding:"8px 16px",background:"#dc2626",color:"#fff",border:"none",borderRadius:6,cursor:"pointer"}}>Recargar</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 // LANG CONTEXT
 const LangContext = createContext("fr");
@@ -1248,7 +1265,8 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
   );
 }
 
-function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser, initialStep }) {
+function ParticipantForm({ participants, setParticipants, matches, adminUnlocked, invoices, setInvoices, currentUser, setCurrentUser, setView, initialStep }) {
+  const lang = useLang(); const tp = T[lang].profile;
   const [step, setStep] = useState(initialStep || (currentUser ? "form" : "login"));
   const [isNew, setIsNew] = useState(false);
   // Login
@@ -1309,6 +1327,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
     setCurrentUser(existing);
     setPreds(existing.predictions||{});
     setStep("form");
+    setView?.("predictions");
   }
 
   async function handleRegister() {
@@ -1343,6 +1362,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
       setPreds({});
       try { localStorage.setItem("sl_user", JSON.stringify(newUser)); } catch(e){}
       setStep("form");
+      setView?.("predictions");
     } catch(e) {
       setError("Error al registrar: "+e.message);
     } finally {
@@ -1987,7 +2007,7 @@ function AdminInvoicesTab({ invoices, handleInvoice, pendingInvoices }) {
             </div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
               <div style={S.statusBadge(inv.status)}>
-                {inv.status==="approved"?tp.aprobada:inv.status==="rejected"?tp.rechazada:tp.pendiente}
+                {inv.status==="approved"?ti.approuved:inv.status==="rejected"?ti.rejected:ti.pending}
               </div>
               {inv.status==="pending" && (
                 <>
@@ -2001,7 +2021,7 @@ function AdminInvoicesTab({ invoices, handleInvoice, pendingInvoices }) {
                 <button
                   style={{...S.btn(editingId===inv.id?"#6b7280":"#d97706",true),fontSize:"0.78rem",padding:"5px 12px"}}
                   onClick={()=>setEditingId(editingId===inv.id?null:inv.id)}>
-                  {editingId===inv.id?tp.cancelar:"✏️ Corregir"}
+                  {editingId===inv.id?lang==="fr"?"Annuler":"Cancelar":"✏️ Corregir"}
                 </button>
               )}
             </div>
@@ -2575,11 +2595,13 @@ export default function App() {
       </header>
 
       <main style={S.main}>
+        <ErrorBoundary>
         {view==="clasificacion" && <ClasificacionView participants={participants} matches={matches} invoices={invoices} currentUser={currentUser} />}
         {view==="leaderboard" && <ReglamentoView />}
-        {(view==="predictions"||view==="login") && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} initialStep={view==="login"?"login":undefined} />}
+        {(view==="predictions"||view==="login") && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} setView={setView} initialStep={view==="login"?"login":undefined} />}
         {view==="fixture" && <FixtureView matches={matches} />}
         {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} pinRequests={pinRequests} setPinRequests={setPinRequests} />}
+        </ErrorBoundary>
       </main>
     </div>
     </LangContext.Provider>
