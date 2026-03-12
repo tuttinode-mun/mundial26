@@ -595,7 +595,7 @@ function ReglamentoView() {
       s4note: "Las facturas deben registrarse en la plataforma. Solo las facturas aprobadas por el administrador generan puntos.",
       s5: "5. Registro de facturas",
       s5items: [
-        "Registrar las facturas en la sección "Mi Perfil" dentro de la plataforma.",
+        "Registrar las facturas en la sección \"Mi Perfil\" dentro de la plataforma.",
         "Ingresar el número de factura y el monto total en dólares canadienses (CAD).",
         "El administrador aprobará o rechazará cada factura registrada.",
         "Una misma factura no puede ser registrada dos veces.",
