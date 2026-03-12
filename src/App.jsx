@@ -2508,7 +2508,7 @@ export default function App() {
 
   const t = T[lang];
   const tabs = [
-    ...(!currentUser ? [{id:"predictions", label:t.nav.inicio}] : []),
+    ...(currentUser ? [{id:"predictions", label:t.nav.inicio}] : []),
     {id:"clasificacion", label:t.nav.clasificacion},
     {id:"leaderboard", label:t.nav.reglamento},
     {id:"fixture", label:t.nav.resultados},
