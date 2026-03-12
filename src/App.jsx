@@ -1939,6 +1939,15 @@ function AdminParticipantRow({ p, i, participants, setParticipants, invoices, ma
   const [eTel, setETel] = useState(p.telefono||"");
   const [ePin, setEPin] = useState("");
 
+  const status = getParticipationStatus(p.id, invoices);
+  const statusCfg = {
+    valid:      { icon:"✅", label:"Válida",    color:"#166534", bg:"#dcfce7" },
+    pending:    { icon:"🕐", label:"Pendiente", color:"#1e40af", bg:"#dbeafe" },
+    no_product: { icon:"⚠️", label:"Sin producto", color:"#92400e", bg:"#fef3c7" },
+    invalid:    { icon:"🔴", label:"No válida", color:"#991b1b", bg:"#fee2e2" },
+  };
+  const sc = statusCfg[status] || statusCfg.invalid;
+
   async function saveEdit() {
     const updated = {...p, nombre:eNombre.trim(), apellido:eApellido.trim(), name:eNombre.trim()+" "+eApellido.trim(), telefono:eTel.trim(), ...(ePin.length>=6?{pin:ePin}:{})};
     const newList = [...participants.filter(x=>x.id!==p.id), updated];
@@ -1953,7 +1962,10 @@ function AdminParticipantRow({ p, i, participants, setParticipants, invoices, ma
         <div style={{display:"flex", alignItems:"center", gap:10}}>
           <span style={{color:"#9ca3af", fontWeight:700, minWidth:24}}>#{i+1}</span>
           <div>
-            <div style={{fontWeight:700, color:BRAND.gray900}}>{p.name}</div>
+            <div style={{display:"flex", alignItems:"center", gap:6}}>
+              <span style={{fontWeight:700, color:BRAND.gray900}}>{p.name}</span>
+              <span style={{background:sc.bg, color:sc.color, borderRadius:6, padding:"1px 7px", fontSize:"0.68rem", fontWeight:700}}>{sc.icon} {sc.label}</span>
+            </div>
             <div style={{fontSize:"0.72rem", color:"#9ca3af"}}>
               {p.email && <span>{p.email} &nbsp;|&nbsp; </span>}
               {p.sucursal && <span style={{color:BRAND.red, fontWeight:600}}>{p.sucursal} &nbsp;|&nbsp; </span>}
