@@ -791,6 +791,7 @@ function Leaderboard({ participants, matches, invoices }) {
 function InvoiceForm({ currentUser, invoices, setInvoices }) {
   const [invoiceNum, setInvoiceNum] = useState("");
   const [amount, setAmount] = useState("");
+  const [hasProduct, setHasProduct] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -813,6 +814,7 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
         invoiceNum: invoiceNum.trim(),
         amount: parseFloat(amount),
         points: calcInvoicePoints(amount),
+        hasProduct: hasProduct,
         status: "pending",
         createdAt: new Date().toISOString(),
       };
@@ -821,6 +823,7 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
       setInvoices(updated);
       setInvoiceNum("");
       setAmount("");
+      setHasProduct(false);
       setSuccess(true);
       setTimeout(()=>setSuccess(false), 3000);
     } catch(e) {
@@ -854,6 +857,40 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
           Esta factura vale <strong style={{color:"#16a34a",fontSize:"1rem"}}>{calcInvoicePoints(amount)} puntos</strong> si es aprobada
         </div>
       )}
+
+      {/* Producto participante checkbox - solo mostrar si monto >= 50 */}
+      {amount && parseFloat(amount)>=50 && (
+        <div style={{marginBottom:14}}>
+          <label style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer",userSelect:"none"}}>
+            <input
+              type="checkbox"
+              checked={hasProduct}
+              onChange={e=>setHasProduct(e.target.checked)}
+              style={{marginTop:3,accentColor:"#d3172e",width:16,height:16,flexShrink:0}}
+            />
+            <span style={{fontSize:"0.83rem",color:"#374151",lineHeight:1.5}}>
+              Esta factura incluye uno de los <strong style={{color:"#d3172e"}}>productos participantes*</strong> del concurso
+            </span>
+          </label>
+          {!hasProduct && (
+            <div style={{marginTop:8,background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:8,padding:"9px 12px",display:"flex",gap:8,alignItems:"flex-start"}}>
+              <span style={{fontSize:"1rem",flexShrink:0}}>⚠️</span>
+              <span style={{fontSize:"0.78rem",color:"#92400e",lineHeight:1.5}}>
+                Sin producto participante, esta factura <strong>no valida tu participación</strong> aunque sea de $50+. Igual genera puntos.
+              </span>
+            </div>
+          )}
+          {hasProduct && (
+            <div style={{marginTop:8,background:"#f0fdf4",border:"1px solid #86efac",borderRadius:8,padding:"9px 12px",display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:"1rem"}}>✅</span>
+              <span style={{fontSize:"0.78rem",color:"#166534",lineHeight:1.5}}>
+                Esta factura <strong>valida tu participación</strong> si es aprobada por el administrador.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {success && (
         <div style={{background:"#0d2215",border:"1px solid #27ae60",borderRadius:8,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontSize:"0.85rem",fontWeight:700}}>
           Factura enviada! Pendiente de aprobacion por el administrador.
@@ -875,6 +912,11 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
                 <div style={{color:"#6b7280",fontSize:"0.78rem",marginTop:2}}>
                   ${inv.amount} CAD &nbsp;|&nbsp; {inv.points} pts potenciales
                 </div>
+                {inv.amount>=50 && (
+                  <div style={{fontSize:"0.72rem",marginTop:3,fontWeight:600,color:inv.hasProduct?"#16a34a":"#f59e0b"}}>
+                    {inv.hasProduct?"✅ Producto participante incluido":"⚠️ Sin producto participante"}
+                  </div>
+                )}
               </div>
               <div style={S.statusBadge(inv.status)}>
                 {inv.status==="approved"?"Aprobada":inv.status==="rejected"?"Rechazada":"Pendiente"}
@@ -1014,6 +1056,41 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
           ))}
         </div>
       </div>
+      {/* INDICADOR DE PARTICIPACIÓN VÁLIDA */}
+      {(()=>{
+        const myInv = (invoices||[]).filter(inv=>inv.participantId===currentUser.id);
+        const validInv = myInv.find(inv=>parseFloat(inv.amount)>=50 && inv.hasProduct);
+        const has50 = myInv.find(inv=>parseFloat(inv.amount)>=50);
+        let status, color, bg, border, icon, msg;
+        if (validInv) {
+          status="valid"; icon="✅"; color="#166534"; bg="#f0fdf4"; border="#86efac";
+          msg = validInv.status==="approved"
+            ? "Participación válida — factura aprobada con producto participante."
+            : "Factura con producto participante enviada. Pendiente de aprobación del administrador.";
+        } else if (has50) {
+          status="warn"; icon="⚠️"; color="#92400e"; bg="#fffbeb"; border="#f59e0b";
+          msg="Tienes una factura de $50+, pero no indicaste que incluye un producto participante. Sin esto tu participación no es válida.";
+        } else {
+          status="error"; icon="🔴"; color="#991b1b"; bg="#fff5f5"; border="#fca5a5";
+          msg="No tienes una factura de $50 o más. Necesitas al menos una compra de $50+ con producto participante para que tu participación sea válida.";
+        }
+        return (
+          <div style={{background:bg,border:"1px solid "+border,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{fontSize:"1.2rem",flexShrink:0}}>{icon}</span>
+            <div>
+              <div style={{fontWeight:700,fontSize:"0.85rem",color,marginBottom:3}}>
+                {status==="valid"?"Participación válida":status==="warn"?"Producto participante no confirmado":"Sin factura válida"}
+              </div>
+              <div style={{fontSize:"0.78rem",color,lineHeight:1.5}}>{msg}</div>
+              {status!=="valid" && (
+                <div style={{fontSize:"0.72rem",color:"#6b7280",marginTop:4}}>
+                  Registra una factura de $50+ con producto participante* en la sección de abajo.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
       {!editMode ? (
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
