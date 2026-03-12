@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
 
@@ -18,6 +18,102 @@ const MATCHES_DOC = doc(db, "tournament", "matches");
 const SETTINGS_DOC = doc(db, "tournament", "settings");
 const INVOICES_DOC = doc(db, "tournament", "invoices");
 const PIN_REQUESTS_DOC = doc(db, "tournament", "pinRequests");
+
+// LANG CONTEXT
+const LangContext = createContext("fr");
+const useLang = () => useContext(LangContext);
+const T = {
+  es: {
+    nav: { inicio:"Inicio", clasificacion:"Clasificación", reglamento:"Reglamento", resultados:"Resultados", admin:"Admin" },
+    status: { loading:"CARGANDO...", participants:"PARTICIPANTES", matches:"PARTIDOS" },
+    clasificacion: {
+      title:"CLASIFICACIÓN GENERAL", participants:"PARTICIPANTES",
+      noParticipants:{tc.noParticipants},
+      exactos:"exactos", acertados:"acertados", ptsFact:"pts facturas", ptsClas:"pts clasificados",
+      validOk:"{tc.validOk}",
+      pendingTitle:{tc.pendingTitle},
+      pendingMsg:"{tc.pendingMsg}",
+      invalidTitle:{tc.invalidTitle},
+      noProductMsg:tc.noProductMsg,
+      invalidMsg:tc.invalidMsg,
+    },
+    profile: {
+      totalPts:{tp.totalPts}, position:{tp.position},
+      pronosticos:"Pronósticos", clasificados:"Clasificados", facturas:"Facturas",
+      validOk:tp.validOk,
+      validTitle:tp.validTitle,
+      pendingTitle:tp.pendingTitle, pendingMsg:"{tc.pendingMsg}",
+      noProductTitle:tp.noProductTitle, noProductMsg:"Tienes una factura de $50+ pero no confirmaste que incluye un producto elegible. Sin esto tu participación no es válida.",
+      invalidTitle:{tc.invalidTitle}, invalidMsg:tp.invalidMsg,
+      misDatos:{tp.misDatos}, nombre:{tp.nombre}, apellido:{tp.apellido}, email:"CORREO", tel:{tp.tel}, sucursal:{tp.sucursal}, pin:{tp.pin}, pin2:{tp.pin2},
+      editarPerfil:{tp.editarPerfil}, guardar:{tp.guardar}, cancelar:{tp.cancelar}, perfilActualizado:"{tp.perfilActualizado}",
+      registrarFactura:{tp.registrarFactura}, numFactura:{tp.numFactura}, monto:{tp.monto},
+      facturaVale:"Esta factura vale", puntos:"puntos", siAprobada:"si es aprobada",
+      productoCheck:"Esta factura incluye uno de los productos participantes* del concurso",
+      sinProductoTitle:{tp.sinProductoTitle}, sinProductoMsg:"{tp.sinProductoMsg}",
+      conProductoMsg:"Esta factura valida tu participación si es aprobada por el administrador.",
+      facturaSent:{tp.facturaSent},
+      enviarFactura:{tp.enviarFactura}, enviando:{tp.enviando},
+      misFacturas:"MIS FACTURAS", ptsAcumulados:"puntos acumulados",
+      aprobada:"Aprobada", rechazada:"Rechazada", pendiente:"Pendiente",
+      productoIncluido:"✅ Producto participante incluido", sinProducto:"⚠️ Sin producto participante",
+      facturaMinima:"El monto minimo es $10 CAD", facturaRepetida:"Esta factura ya fue registrada", facturaNum:"Ingresa el numero de factura",
+    },
+    login: {
+      login:"Iniciar Sesión", register:"Registrarse", logout:"Cerrar Sesión",
+      email:"CORREO ELECTRÓNICO", pin:"PIN (4 dígitos)", nombre:{tp.nombre}, apellido:{tp.apellido}, tel:{tp.tel}, sucursal:{tp.sucursal},
+      btnLogin:"Entrar", btnRegister:"Crear Cuenta", btnLogout:"Cerrar Sesión",
+      forgotPin:"¿Olvidaste tu PIN?", backLogin:"← Volver al inicio de sesión",
+      noAccount:"¿No tienes cuenta?", hasAccount:"¿Ya tienes cuenta?",
+    },
+    invoice: { approuved:"Aprobada", rejected:"Rechazada", pending:"Pendiente", withProduct:"✅ Producto elegible", noProduct:"⚠️ Sin producto elegible" },
+  },
+  fr: {
+    nav: { inicio:"Accueil", clasificacion:"Classement", reglamento:"Règlement", resultados:"Résultats", admin:"Admin" },
+    status: { loading:"CHARGEMENT...", participants:"PARTICIPANTS", matches:"MATCHS" },
+    clasificacion: {
+      title:"CLASSEMENT GÉNÉRAL", participants:"PARTICIPANTS",
+      noParticipants:"Aucun participant pour l'instant",
+      exactos:"exacts", acertados:"corrects", ptsFact:"pts factures", ptsClas:"pts classés",
+      validOk:"Ta participation est valide — facture approuvée avec produit éligible.",
+      pendingTitle:"Facture en attente d'approbation",
+      pendingMsg:"Ta facture de 50 $+ avec produit éligible est en cours de vérification par l'administrateur.",
+      invalidTitle:"Participation non valide",
+      noProductMsg:"Tu as une facture de 50 $+ mais tu n'as pas confirmé qu'elle inclut un produit éligible. Modifie-la dans Mon Profil.",
+      invalidMsg:"Enregistre une facture de 50 $ ou plus incluant un des produits éligibles* pour valider ta participation.",
+    },
+    profile: {
+      totalPts:"TOTAL DE POINTS", position:"POSITION",
+      pronosticos:"Pronostics", clasificados:"Classés", facturas:"Factures",
+      validOk:"Facture approuvée avec produit éligible. Tu participes correctement.",
+      validTitle:"Participation valide",
+      pendingTitle:"En attente d'approbation", pendingMsg:"Ta facture de 50 $+ avec produit éligible est en cours de vérification par l'administrateur.",
+      noProductTitle:"Produit éligible non confirmé", noProductMsg:"Tu as une facture de 50 $+ mais tu n'as pas confirmé qu'elle inclut un produit éligible. Sans cela, ta participation n'est pas valide.",
+      invalidTitle:"Participation non valide", invalidMsg:"Tu as besoin d'une facture de 50 $+ avec produit éligible* approuvée pour participer. Enregistre ton achat ci-dessous.",
+      misDatos:"Mes informations", nombre:"PRÉNOM", apellido:"NOM", email:"COURRIEL", tel:"TÉLÉPHONE", sucursal:"SUCCURSALE", pin:"NOUVEAU NIP", pin2:"CONFIRMER NIP",
+      editarPerfil:"Modifier le profil", guardar:"Enregistrer", cancelar:"Annuler", perfilActualizado:"✅ Profil mis à jour",
+      registrarFactura:"Enregistrer une facture", numFactura:"NUMÉRO DE FACTURE", monto:"MONTANT (CAD $)",
+      facturaVale:"Cette facture vaut", puntos:"points", siAprobada:"si elle est approuvée",
+      productoCheck:"Cette facture inclut un des produits participants* du concours",
+      sinProductoTitle:"Sans produit participant, cette facture", sinProductoMsg:"ne valide pas ta participation même si elle est de 50 $+. Elle génère quand même des points.",
+      conProductoMsg:"Cette facture valide ta participation si elle est approuvée par l'administrateur.",
+      facturaSent:"Facture envoyée ! En attente d'approbation de l'administrateur.",
+      enviarFactura:"Envoyer la facture", enviando:"Envoi en cours...",
+      misFacturas:"MES FACTURES", ptsAcumulados:"points accumulés",
+      aprobada:"Approuvée", rechazada:"Rejetée", pendiente:"En attente",
+      productoIncluido:"✅ Produit participant inclus", sinProducto:"⚠️ Sans produit participant",
+      facturaMinima:"Le montant minimum est de 10 $ CAD", facturaRepetida:"Cette facture a déjà été enregistrée", facturaNum:"Entrez le numéro de facture",
+    },
+    login: {
+      login:"Connexion", register:"S'inscrire", logout:"Déconnexion",
+      email:"ADRESSE COURRIEL", pin:"NIP (4 chiffres)", nombre:"PRÉNOM", apellido:"NOM", tel:"TÉLÉPHONE", sucursal:"SUCCURSALE",
+      btnLogin:"Entrer", btnRegister:"Créer un compte", btnLogout:"Se déconnecter",
+      forgotPin:"Mot de passe oublié ?", backLogin:"← Retour à la connexion",
+      noAccount:"Pas encore de compte ?", hasAccount:"Déjà un compte ?",
+    },
+    invoice: { approuved:"Approuvée", rejected:"Rejetée", pending:"En attente", withProduct:"✅ Produit éligible", noProduct:"⚠️ Sans produit éligible" },
+  },
+};
 
 // GROUPS
 const GROUPS = {
@@ -515,7 +611,7 @@ const FontStyle = () => (
 // LEADERBOARD
 // REGLAMENTO VIEW
 function ReglamentoView() {
-  const [lang, setLang] = useState("fr");
+  const lang = useLang();
 
   const T = {
     fr: {
@@ -658,11 +754,6 @@ function ReglamentoView() {
         <div style={{fontSize:"0.7rem",letterSpacing:3,opacity:0.8,marginBottom:6}}>SABOR LATINO</div>
         <div style={{fontSize:"1rem",fontWeight:800,letterSpacing:1,lineHeight:1.3}}>{t.title}</div>
         <div style={{fontSize:"0.72rem",opacity:0.75,marginTop:6}}>{t.subtitle}</div>
-        <button
-          onClick={()=>setLang(lang==="fr"?"es":"fr")}
-          style={{marginTop:14,background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.5)",color:"#fff",borderRadius:20,padding:"6px 18px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",letterSpacing:0.5}}>
-          {t.toggle}
-        </button>
       </div>
 
       {/* Sections */}
@@ -728,6 +819,7 @@ function getParticipationStatus(participantId, invoices) {
 }
 
 function ClasificacionView({ participants, matches, invoices, currentUser }) {
+  const lang = useLang(); const tc = T[lang].clasificacion;
   const ranked = [...participants]
     .map(p => {
       const userInvoices = (invoices||[]).filter(inv => inv.participantId === p.id && inv.status === "approved");
@@ -754,7 +846,7 @@ function ClasificacionView({ participants, matches, invoices, currentUser }) {
         if (ps==="valid") return (
           <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"center"}}>
             <span style={{fontSize:"1.2rem"}}>✅</span>
-            <div style={{fontWeight:700,fontSize:"0.85rem",color:"#166534"}}>Tu participación es válida — factura aprobada con producto elegible.</div>
+            <div style={{fontWeight:700,fontSize:"0.85rem",color:"#166534"}}>{tc.validOk}</div>
           </div>
         );
         if (ps==="pending") return (
@@ -762,18 +854,18 @@ function ClasificacionView({ participants, matches, invoices, currentUser }) {
             <span style={{fontSize:"1.2rem",flexShrink:0}}>🕐</span>
             <div>
               <div style={{fontWeight:700,fontSize:"0.85rem",color:"#1e40af",marginBottom:2}}>Factura pendiente de aprobación</div>
-              <div style={{fontSize:"0.8rem",color:"#1e40af",lineHeight:1.5}}>Tu factura de $50+ con producto elegible está siendo revisada por el administrador.</div>
+              <div style={{fontSize:"0.8rem",color:"#1e40af",lineHeight:1.5}}>{tc.pendingMsg}</div>
             </div>
           </div>
         );
         const msg = ps==="no_product"
-          ? "Tienes una factura de $50+ pero no confirmaste que incluye un producto elegible. Edítala en Mi Perfil."
-          : "Registra una factura de $50 o más que incluya alguno de los productos elegibles* para validar tu participación.";
+          ? tc.noProductMsg
+          : tc.invalidMsg;
         return (
           <div style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:12,padding:"12px 16px",marginBottom:12,display:"flex",gap:10,alignItems:"flex-start"}}>
             <span style={{fontSize:"1.2rem",flexShrink:0}}>⚠️</span>
             <div>
-              <div style={{fontWeight:700,fontSize:"0.85rem",color:"#92400e",marginBottom:2}}>Participación no válida</div>
+              <div style={{fontWeight:700,fontSize:"0.85rem",color:"#92400e",marginBottom:2}}>{tc.invalidTitle}</div>
               <div style={{fontSize:"0.8rem",color:"#92400e",lineHeight:1.5}}>{msg}</div>
             </div>
           </div>
@@ -781,7 +873,7 @@ function ClasificacionView({ participants, matches, invoices, currentUser }) {
       })()}
       <div style={{...S.card, padding:0, overflow:"hidden"}}>
         <div style={{background:BRAND.red, padding:"12px 18px"}}>
-          <div style={{color:"#fff", fontWeight:800, fontSize:"1rem", letterSpacing:1}}>CLASIFICACIÓN GENERAL — {ranked.length} PARTICIPANTES</div>
+          <div style={{color:"#fff", fontWeight:800, fontSize:"1rem", letterSpacing:1}}>{tc.title} — {ranked.length} {tc.participants}</div>
         </div>
         {ranked.length===0 && (
           <div style={{textAlign:"center", color:"#9ca3af", padding:30}}>Aun no hay participantes</div>
@@ -803,9 +895,9 @@ function ClasificacionView({ participants, matches, invoices, currentUser }) {
             <div style={{flex:1}}>
               <div style={{fontWeight:700, fontSize:"0.95rem", color:BRAND.gray900}}>{p.name}</div>
               <div style={{fontSize:"0.72rem", color:"#9ca3af", marginTop:1}}>
-                {p.exact} exactos · {p.correct} acertados
-                {p.invPts > 0 && <span style={{color:BRAND.red}}> · +{p.invPts}pts facturas</span>}
-                {p.classPts > 0 && <span style={{color:"#7c3aed"}}> · +{p.classPts}pts clasificados</span>}
+                {p.exact} {tc.exactos} · {p.correct} {tc.acertados}
+                {p.invPts > 0 && <span style={{color:BRAND.red}}> · +{p.invPts} {tc.ptsFact}</span>}
+                {p.classPts > 0 && <span style={{color:"#7c3aed"}}> · +{p.classPts} {tc.ptsClas}</span>}
               </div>
             </div>
             <div style={{textAlign:"right"}}>
@@ -821,6 +913,7 @@ function ClasificacionView({ participants, matches, invoices, currentUser }) {
 
 // INVOICE FORM
 function InvoiceForm({ currentUser, invoices, setInvoices }) {
+  const lang = useLang(); const tp = T[lang].profile;
   const [invoiceNum, setInvoiceNum] = useState("");
   const [amount, setAmount] = useState("");
   const [hasProduct, setHasProduct] = useState(false);
@@ -832,10 +925,10 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
     .reduce((sum,inv)=>sum+calcInvoicePoints(inv.amount),0);
 
   async function handleSubmit() {
-    if (!invoiceNum.trim()) { alert("Ingresa el numero de factura"); return; }
-    if (!amount || parseFloat(amount)<10) { alert("El monto minimo es $10 CAD"); return; }
+    if (!invoiceNum.trim()) { alert(tp.facturaNum); return; }
+    if (!amount || parseFloat(amount)<10) { alert(tp.facturaMinima); return; }
     const alreadyExists = invoices.find(inv=>inv.invoiceNum===invoiceNum.trim());
-    if (alreadyExists) { alert("Esta factura ya fue registrada"); return; }
+    if (alreadyExists) { alert(tp.facturaRepetida); return; }
 
     setSaving(true);
     try {
@@ -886,7 +979,7 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
       </div>
       {amount && parseFloat(amount)>=10 && (
         <div style={{background:"#0d2215",border:"1px solid #27ae6044",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:"0.85rem"}}>
-          Esta factura vale <strong style={{color:"#16a34a",fontSize:"1rem"}}>{calcInvoicePoints(amount)} puntos</strong> si es aprobada
+          {tp.facturaVale} <strong style={{color:"#16a34a",fontSize:"1rem"}}>{calcInvoicePoints(amount)} {tp.puntos}</strong> {tp.siAprobada}
         </div>
       )}
 
@@ -901,7 +994,7 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
               style={{marginTop:3,accentColor:"#d3172e",width:16,height:16,flexShrink:0}}
             />
             <span style={{fontSize:"0.83rem",color:"#374151",lineHeight:1.5}}>
-              Esta factura incluye uno de los <strong style={{color:"#d3172e"}}>productos participantes*</strong> del concurso
+              {tp.productoCheck}
             </span>
           </label>
           {!hasProduct && (
@@ -916,7 +1009,7 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
             <div style={{marginTop:8,background:"#f0fdf4",border:"1px solid #86efac",borderRadius:8,padding:"9px 12px",display:"flex",gap:8,alignItems:"center"}}>
               <span style={{fontSize:"1rem"}}>✅</span>
               <span style={{fontSize:"0.78rem",color:"#166534",lineHeight:1.5}}>
-                Esta factura <strong>valida tu participación</strong> si es aprobada por el administrador.
+                {tp.conProductoMsg}
               </span>
             </div>
           )}
@@ -929,13 +1022,13 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
         </div>
       )}
       <button style={S.btn()} onClick={handleSubmit} disabled={saving}>
-        {saving?"Enviando...":"Enviar Factura"}
+        {saving?{tp.enviando}:{tp.enviarFactura}}
       </button>
 
       {myInvoices.length>0 && (
         <div style={{marginTop:20}}>
           <div style={{fontSize:"0.8rem",color:"#d3172e",fontWeight:700,letterSpacing:1,marginBottom:10}}>
-            MIS FACTURAS ({myInvoices.length}) — {approvedPts} puntos acumulados
+            MIS FACTURAS ({myInvoices.length}) — {approvedPts} {tp.ptsAcumulados}
           </div>
           {myInvoices.map(inv=>(
             <div key={inv.id} style={S.invoiceCard(inv.status)}>
@@ -946,12 +1039,12 @@ function InvoiceForm({ currentUser, invoices, setInvoices }) {
                 </div>
                 {inv.amount>=50 && (
                   <div style={{fontSize:"0.72rem",marginTop:3,fontWeight:600,color:inv.hasProduct?"#16a34a":"#f59e0b"}}>
-                    {inv.hasProduct?"✅ Producto participante incluido":"⚠️ Sin producto participante"}
+                    {inv.hasProduct?tp.productoIncluido:tp.sinProducto}
                   </div>
                 )}
               </div>
               <div style={S.statusBadge(inv.status)}>
-                {inv.status==="approved"?"Aprobada":inv.status==="rejected"?"Rechazada":"Pendiente"}
+                {inv.status==="approved"?tp.aprobada:inv.status==="rejected"?tp.rechazada:tp.pendiente}
               </div>
             </div>
           ))}
@@ -1019,6 +1112,7 @@ const SUCURSALES = ["St-Hubert", "St-Laurent", "Brossard"];
 
 
 function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants, matches, invoices, setInvoices, preds }) {
+  const lang = useLang(); const tp = T[lang].profile;
   const [editMode, setEditMode] = useState(false);
   const [editNombre, setEditNombre] = useState(currentUser.nombre||"");
   const [editApellido, setEditApellido] = useState(currentUser.apellido||"");
@@ -1080,7 +1174,7 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
           <div style={{fontSize:"2.6rem",fontWeight:900,color:"#fff",lineHeight:1}}>{total}</div>
         </div>
         <div style={{background:"#fff",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",padding:"14px 10px"}}>
-          {[["Pronósticos",gamePts,"#2563eb"],["Clasificados",classPts,"#7c3aed"],["Facturas",invPts,"#16a34a"]].map(([l,v,c],i,arr)=>(
+          {[[tp.pronosticos,gamePts,"#2563eb"],[tp.clasificados,classPts,"#7c3aed"],[tp.facturas,invPts,"#16a34a"]].map(([l,v,c],i,arr)=>(
             <div key={l} style={{textAlign:"center",borderRight:i<arr.length-1?"1px solid #f3f4f6":"none"}}>
               <div style={{fontSize:"1.5rem",fontWeight:800,color:c}}>{v}</div>
               <div style={{fontSize:"0.68rem",color:"#6b7280",marginTop:3}}>{l}</div>
@@ -1092,10 +1186,10 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
       {(()=>{
         const ps = getParticipationStatus(currentUser.id, invoices);
         const cfg = {
-          valid:      { icon:"✅", color:"#166534", bg:"#f0fdf4", border:"#86efac", title:"Participación válida",            msg:"Factura aprobada con producto elegible. Estás participando correctamente." },
-          pending:    { icon:"🕐", color:"#1e40af", bg:"#eff6ff", border:"#93c5fd", title:"Pendiente de aprobación",         msg:"Tu factura de $50+ con producto elegible está siendo revisada por el administrador." },
-          no_product: { icon:"⚠️", color:"#92400e", bg:"#fffbeb", border:"#f59e0b", title:"Producto elegible no confirmado", msg:"Tienes una factura de $50+ pero no confirmaste que incluye un producto elegible. Sin esto tu participación no es válida." },
-          invalid:    { icon:"🔴", color:"#991b1b", bg:"#fff5f5", border:"#fca5a5", title:"Participación no válida",         msg:"Necesitas una factura de $50+ con producto elegible* aprobada para participar. Registra tu compra abajo." },
+          valid:      { icon:"✅", color:"#166534", bg:"#f0fdf4", border:"#86efac", title:tp.validTitle,            msg:tp.validOk },
+          pending:    { icon:"🕐", color:"#1e40af", bg:"#eff6ff", border:"#93c5fd", title:tp.pendingTitle,    msg:tp.pendingMsg },
+          no_product: { icon:"⚠️", color:"#92400e", bg:"#fffbeb", border:"#f59e0b", title:tp.noProductTitle, msg:tp.noProductMsg },
+          invalid:    { icon:"🔴", color:"#991b1b", bg:"#fff5f5", border:"#fca5a5", title:tp.invalidTitle,   msg:tp.invalidMsg },
         }[ps];
         return (
           <div style={{background:cfg.bg,border:"1px solid "+cfg.border,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"flex-start"}}>
@@ -1107,14 +1201,14 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
           </div>
         );
       })()}
-      {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>✅ Perfil actualizado</div>}
+      {editOk && <div style={{background:"#f0fdf4",border:"1px solid #16a34a",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#16a34a",fontWeight:600,fontSize:"0.85rem"}}>{tp.perfilActualizado}</div>}
       {!editMode ? (
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div style={{fontWeight:700,fontSize:"0.95rem"}}>Mis datos</div>
-            <button style={{...S.btn("#2563eb",true),fontSize:"0.78rem",padding:"5px 12px"}} onClick={()=>setEditMode(true)}>Editar</button>
+            <div style={{fontWeight:700,fontSize:"0.95rem"}}>{tp.misDatos}</div>
+            <button style={{...S.btn("#2563eb",true),fontSize:"0.78rem",padding:"5px 12px"}} onClick={()=>setEditMode(true)}>{tp.editarPerfil}</button>
           </div>
-          {[["Nombre",currentUser.nombre+" "+currentUser.apellido],["Correo",currentUser.email],["Teléfono",currentUser.telefono||"-"],["Sucursal",currentUser.sucursal||"-"]].map(([l,v])=>(
+          {[[tp.nombre.charAt(0)+tp.nombre.slice(1).toLowerCase(),currentUser.nombre+" "+currentUser.apellido],[tp.email.charAt(0)+tp.email.slice(1).toLowerCase(),currentUser.email],[tp.tel.charAt(0)+tp.tel.slice(1).toLowerCase(),currentUser.telefono||"-"],[tp.sucursal.charAt(0)+tp.sucursal.slice(1).toLowerCase(),currentUser.sucursal||"-"]].map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #f3f4f6",fontSize:"0.85rem"}}>
               <span style={{color:"#6b7280"}}>{l}</span>
               <span style={{fontWeight:600,color:"#111827"}}>{v}</span>
@@ -1123,7 +1217,7 @@ function ProfileTab({ currentUser, setCurrentUser, participants, setParticipants
         </div>
       ) : (
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:16}}>
-          <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:12}}>Editar datos</div>
+          <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:12}}>{tp.editarPerfil}</div>
           {editErr && <div style={{color:"#e74c3c",fontSize:"0.82rem",marginBottom:8}}>{editErr}</div>}
           {[["Nombre",editNombre,setEditNombre],["Apellido",editApellido,setEditApellido],["Teléfono",editTel,setEditTel]].map(([l,v,sv])=>(
             <div key={l} style={{marginBottom:10}}>
@@ -1515,7 +1609,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
               {!isPhaseLocked("groups",adminUnlocked) && (
                 <div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}>
                   <button style={{...S.btn("#16a34a"),fontSize:"0.8rem"}} onClick={handleSave} disabled={saving}>
-                    {saving?"Guardando...":"Guardar"}
+                    {saving?"Guardando...":{tp.guardar}}
                   </button>
                 </div>
               )}
@@ -1568,7 +1662,7 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
                   {!phaseLocked && (
                     <div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}>
                       <button style={{...S.btn("#27ae60"),fontSize:"0.8rem"}} onClick={handleSave} disabled={saving}>
-                        {saving?"Guardando...":"Guardar"}
+                        {saving?"Guardando...":{tp.guardar}}
                       </button>
                     </div>
                   )}
@@ -1885,14 +1979,14 @@ function AdminInvoicesTab({ invoices, handleInvoice, pendingInvoices }) {
                 <span style={{color:"#9ca3af"}}>{new Date(inv.createdAt).toLocaleDateString()}</span>
                 {inv.amount>=50 && (
                   <span style={{fontWeight:600,color:inv.hasProduct?"#16a34a":"#f59e0b"}}>
-                    {inv.hasProduct?"✅ Producto elegible":"⚠️ Sin producto elegible"}
+                    {inv.hasProduct?T[useLang()].invoice.withProduct+":"+T[useLang()].invoice.noProduct}
                   </span>
                 )}
               </div>
             </div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
               <div style={S.statusBadge(inv.status)}>
-                {inv.status==="approved"?"Aprobada":inv.status==="rejected"?"Rechazada":"Pendiente"}
+                {inv.status==="approved"?tp.aprobada:inv.status==="rejected"?tp.rechazada:tp.pendiente}
               </div>
               {inv.status==="pending" && (
                 <>
@@ -1906,7 +2000,7 @@ function AdminInvoicesTab({ invoices, handleInvoice, pendingInvoices }) {
                 <button
                   style={{...S.btn(editingId===inv.id?"#6b7280":"#d97706",true),fontSize:"0.78rem",padding:"5px 12px"}}
                   onClick={()=>setEditingId(editingId===inv.id?null:inv.id)}>
-                  {editingId===inv.id?"Cancelar":"✏️ Corregir"}
+                  {editingId===inv.id?{tp.cancelar}:"✏️ Corregir"}
                 </button>
               )}
             </div>
@@ -2341,6 +2435,7 @@ function AdminPanel({ matches, setMatches, participants, setParticipants, adminU
 export default function App() {
   const isAdmin = typeof window !== "undefined" && window.location.search.includes("admin");
   const [view, setView] = useState("leaderboard");
+  const [lang, setLang] = useState("fr");
   const [matches, setMatches] = useState(INITIAL_MATCHES);
   const [participants, setParticipants] = useState([]);
   const [adminUnlocked, setAdminUnlocked] = useState({});
@@ -2390,30 +2485,34 @@ export default function App() {
     return () => { unsubP(); unsubM(); unsubS(); unsubI(); unsubR(); };
   }, []);
 
+  const t = T[lang];
   const tabs = [
-    {id:"predictions", label:"Inicio"},
-    {id:"clasificacion", label:"Clasificación"},
-    {id:"leaderboard", label:"Reglamento"},
-    {id:"fixture", label:"Resultados"},
-    ...(isAdmin ? [{id:"admin", label:"Admin"}] : []),
+    {id:"predictions", label:t.nav.inicio},
+    {id:"clasificacion", label:t.nav.clasificacion},
+    {id:"leaderboard", label:t.nav.reglamento},
+    {id:"fixture", label:t.nav.resultados},
+    ...(isAdmin ? [{id:"admin", label:t.nav.admin}] : []),
   ];
 
   const totalMatches = matches.filter(m=>m.realHome!==null).length;
   const pendingInv = invoices.filter(i=>i.status==="pending").length;
 
   if (loading) return (
+    <LangContext.Provider value={lang}>
     <div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh"}}>
       <FontStyle />
       <div style={{textAlign:"center"}}>
         <img src="data:image/jpeg;base64"
           alt="Sabor Latino" style={{height:60,marginBottom:16,opacity:.8}} />
         <div style={{fontSize:"2rem",marginBottom:8,color:BRAND.red}} className="pulse">...</div>
-        <div style={{color:BRAND.gray400,fontSize:"0.85rem",letterSpacing:3}}>CARGANDO...</div>
+        <div style={{color:BRAND.gray400,fontSize:"0.85rem",letterSpacing:3}}>{t.status.loading}</div>
       </div>
     </div>
+    </LangContext.Provider>
   );
 
   return (
+    <LangContext.Provider value={lang}>
     <div style={S.app}>
       <FontStyle />
       <header style={S.header}>
@@ -2459,10 +2558,18 @@ export default function App() {
                 {(currentUser.nombre||currentUser.name||"?")[0].toUpperCase()}
               </button>
             )}
+            {/* Lang toggle */}
+            <button
+              onClick={()=>setLang(l=>l==="fr"?"es":"fr")}
+              title={lang==="fr"?"Ver en Español":"Voir en Français"}
+              style={{marginLeft:6,background:"none",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",padding:"4px 8px",fontSize:"0.72rem",fontWeight:700,color:BRAND.gray600,letterSpacing:0.5,lineHeight:1.2,transition:"all 0.15s"}}
+            >
+              {lang==="fr"?"ES":"FR"}
+            </button>
           </nav>
         </div>
         <div style={{background:BRAND.red,padding:"4px 16px",textAlign:"center",fontSize:"0.7rem",color:"rgba(255,255,255,0.85)",letterSpacing:1}}>
-          {participants.length} PARTICIPANTES &nbsp;|&nbsp; {totalMatches} PARTIDOS &nbsp;|&nbsp; 11 JUN - 19 JUL 2026
+          {participants.length} {t.status.participants} &nbsp;|&nbsp; {totalMatches} {t.status.matches} &nbsp;|&nbsp; 11 JUN - 19 JUL 2026
         </div>
       </header>
 
@@ -2474,5 +2581,6 @@ export default function App() {
         {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} pinRequests={pinRequests} setPinRequests={setPinRequests} />}
       </main>
     </div>
+    </LangContext.Provider>
   );
 }
