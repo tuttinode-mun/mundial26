@@ -1547,13 +1547,29 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
 
   return (
     <div className="fi">
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
-        <span style={{color:"#d3172e",fontWeight:800}}>{currentUser?.name}</span>
+      {/* Welcome banner */}
+      <div style={{background:"linear-gradient(135deg,#d3172e 0%,#a0122a 100%)",borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.72rem",letterSpacing:1,fontWeight:600,textTransform:"uppercase"}}>{lang==="fr"?"Bienvenue":"Bienvenido"}</div>
+          <div style={{color:"#fff",fontWeight:800,fontSize:"1.1rem"}}>{currentUser?.nombre ? currentUser.nombre+" "+currentUser.apellido : currentUser?.name}</div>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:8,padding:"6px 14px",textAlign:"center"}}>
+            <div style={{color:"#fff",fontWeight:800,fontSize:"1.2rem"}}>{Object.keys(preds).length}</div>
+            <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.68rem",letterSpacing:0.5}}>{lang==="fr"?"pronostics":"pronósticos"}</div>
+          </div>
+          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:8,padding:"6px 14px",textAlign:"center"}}>
+            <div style={{color:"#fff",fontWeight:800,fontSize:"1.2rem"}}>{matches.length}</div>
+            <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.68rem",letterSpacing:0.5}}>{lang==="fr"?"matchs total":"partidos total"}</div>
+          </div>
+        </div>
         <div style={{display:"flex",gap:8}}>
           <button style={{...S.btn("#27ae60"),fontSize:"0.8rem",padding:"6px 14px"}} onClick={handleSave} disabled={saving}>
             {saving?"Guardando...":"Guardar Todo"}
           </button>
-          <button style={{...S.btn("#6b7280",true),fontSize:"0.8rem",padding:"6px 12px"}} onClick={()=>{setStep("login");setCurrentUser(null);try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");setView?.("clasificacion");}}>Salir</button>
+          <button style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:8,padding:"6px 12px",fontSize:"0.8rem",cursor:"pointer",fontWeight:600}} onClick={()=>{setStep("login");setCurrentUser(null);try{localStorage.removeItem("sl_user");}catch(e){}setLoginEmail("");setLoginPin("");setView?.("clasificacion");}}>
+            {lang==="fr"?"Déconnexion":"Salir"}
+          </button>
         </div>
       </div>
 
