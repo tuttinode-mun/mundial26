@@ -18,6 +18,7 @@ const MATCHES_DOC = doc(db, "tournament", "matches");
 const SETTINGS_DOC = doc(db, "tournament", "settings");
 const INVOICES_DOC = doc(db, "tournament", "invoices");
 const PIN_REQUESTS_DOC = doc(db, "tournament", "pinRequests");
+const RULETA_DOC = doc(db, "tournament", "ruleta");
 
 // ERROR BOUNDARY — catches silent white screens
 class ErrorBoundary extends React.Component {
@@ -41,7 +42,7 @@ const LangContext = createContext("fr");
 const useLang = () => useContext(LangContext);
 const T = {
   es: {
-    nav: { inicio:"Inicio", clasificacion:"Clasificación", reglamento:"Reglamento", resultados:"Resultados", admin:"Admin" },
+    nav: { inicio:"Inicio", clasificacion:"Clasificación", reglamento:"Reglamento", resultados:"Resultados", ruleta:"Ruleta", admin:"Admin" },
     status: { loading:"CARGANDO...", participants:"PARTICIPANTES", matches:"PARTIDOS" },
     clasificacion: {
       title:"CLASIFICACIÓN GENERAL", participants:"PARTICIPANTES",
@@ -86,7 +87,7 @@ const T = {
     invoice: { approuved:"Aprobada", rejected:"Rechazada", pending:"Pendiente", withProduct:"✅ Producto elegible", noProduct:"⚠️ Sin producto elegible" },
   },
   fr: {
-    nav: { inicio:"Accueil", clasificacion:"Classement", reglamento:"Règlement", resultados:"Résultats", admin:"Admin" },
+    nav: { inicio:"Accueil", clasificacion:"Classement", reglamento:"Règlement", resultados:"Résultats", ruleta:"Roulette", admin:"Admin" },
     status: { loading:"CHARGEMENT...", participants:"PARTICIPANTS", matches:"MATCHS" },
     clasificacion: {
       title:"CLASSEMENT GÉNÉRAL", participants:"PARTICIPANTS",
@@ -1734,6 +1735,263 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
 }
 
 // FIXTURE VIEW
+// ── RULETA VIEW ──────────────────────────────────────────────────────────────
+function RuletaView({ participants, matches, invoices, isAdmin }) {
+  const lang = useLang();
+  const [activeRuleta, setActiveRuleta] = useState("premium"); // "premium" | "general"
+  const [spinning, setSpinning] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [rotation, setRotation] = useState(0);
+  const [savedWinners, setSavedWinners] = useState({ premium: null, general: null });
+
+  // Load saved winners from Firebase
+  useEffect(() => {
+    const unsub = onSnapshot(RULETA_DOC, snap => {
+      if (snap.exists()) setSavedWinners(snap.data().winners || { premium: null, general: null });
+    });
+    return () => unsub();
+  }, []);
+
+  // Build participant lists
+  function buildEntrants(type) {
+    const entrants = [];
+    participants.forEach(p => {
+      const validInvoices = invoices.filter(inv =>
+        inv.participantId === p.id &&
+        inv.status === "approved" &&
+        parseFloat(inv.amount) >= 50
+      );
+      if (validInvoices.length === 0) return;
+      const name = p.nombre ? p.nombre + " " + p.apellido : p.name;
+
+      if (type === "premium") {
+        // Premium: one entry per approved $50+ invoice AND has at least one exact prediction
+        const hasExact = matches.some(m => {
+          if (m.realHome === null || m.realAway === null) return false;
+          const pred = p.predictions?.[m.id];
+          if (!pred) return false;
+          return calcPoints(pred.home, pred.away, m.realHome, m.realAway) === 5;
+        });
+        if (!hasExact) return;
+        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
+      } else {
+        // General: one entry per approved $50+ invoice
+        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
+      }
+    });
+    return entrants;
+  }
+
+  const premiumEntrants = buildEntrants("premium");
+  const generalEntrants = buildEntrants("general");
+  const entrants = activeRuleta === "premium" ? premiumEntrants : generalEntrants;
+
+  // Unique names for wheel display (wheel shows unique, but draw is weighted)
+  const uniqueNames = [...new Set(entrants.map(e => e.name))];
+  const wheelNames = entrants.map(e => e.name); // repeated for weighted wheel
+
+  // Colors for wheel segments
+  const COLORS = ["#d3172e","#e67e22","#27ae60","#2980b9","#8e44ad","#f39c12","#16a085","#c0392b","#1abc9c","#2c3e50","#e74c3c","#3498db"];
+
+  function spin() {
+    if (spinning || entrants.length === 0) return;
+    setWinner(null);
+    setSpinning(true);
+
+    // Pick random winner (weighted by entries)
+    const picked = entrants[Math.floor(Math.random() * entrants.length)];
+    const winnerIndex = wheelNames.indexOf(picked.name);
+    const segmentAngle = 360 / wheelNames.length;
+
+    // Calculate target rotation: many full spins + land on winner segment
+    const spins = 5 + Math.floor(Math.random() * 5); // 5-10 full rotations
+    const targetAngle = 360 - (winnerIndex * segmentAngle + segmentAngle / 2);
+    const totalRotation = rotation + spins * 360 + targetAngle;
+
+    setRotation(totalRotation);
+
+    setTimeout(async () => {
+      setSpinning(false);
+      setWinner(picked.name);
+      // Save winner to Firebase
+      const newWinners = { ...savedWinners, [activeRuleta]: { name: picked.name, date: new Date().toISOString() } };
+      try { await setDoc(RULETA_DOC, { winners: newWinners }); } catch(e){}
+    }, 5000);
+  }
+
+  const isPremium = activeRuleta === "premium";
+  const accentColor = isPremium ? "#d3172e" : "#e67e22";
+  const currentSaved = savedWinners[activeRuleta];
+
+  return (
+    <div className="fi" style={{maxWidth:600,margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:"2rem",marginBottom:4}}>🎰</div>
+        <div style={{fontWeight:800,fontSize:"1.3rem",color:BRAND.gray900,letterSpacing:1}}>
+          {lang==="fr"?"Roulette du Mondial":"Ruleta del Mundial"}
+        </div>
+        <div style={{color:"#6b7280",fontSize:"0.82rem",marginTop:4}}>
+          {lang==="fr"?"Tirage au sort officiel":"Sorteo oficial"}
+        </div>
+      </div>
+
+      {/* Toggle Premium / General */}
+      <div style={{display:"flex",gap:0,marginBottom:20,borderRadius:10,overflow:"hidden",border:"2px solid #e5e7eb"}}>
+        {[["premium","🏆 "+(lang==="fr"?"Premium":"Premium"),"#d3172e"],["general","🎟️ "+(lang==="fr"?"Général":"General"),"#e67e22"]].map(([id,label,color])=>(
+          <button key={id} onClick={()=>{setActiveRuleta(id);setWinner(null);}}
+            style={{flex:1,padding:"10px",border:"none",cursor:"pointer",fontWeight:700,fontSize:"0.85rem",
+              background:activeRuleta===id?color:"#fff",
+              color:activeRuleta===id?"#fff":"#6b7280",
+              transition:"all 0.2s"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Info banner */}
+      <div style={{background:isPremium?"#fff5f5":"#fff7ed",border:`1px solid ${isPremium?"#fca5a5":"#fed7aa"}`,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:"0.8rem",color:isPremium?"#991b1b":"#92400e"}}>
+        {isPremium
+          ? (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+ — réservé aux participants avec au moins un pronostic exact 🎯":"Entradas: 1 por factura aprobada de $50+ — solo para participantes con al menos un pronóstico exacto 🎯")
+          : (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+. Plus de factures = plus de chances de gagner ! 🧾":"Entradas: 1 por factura aprobada de $50+. ¡Más facturas = más chances de ganar! 🧾")
+        }
+      </div>
+
+      {/* Stats */}
+      <div style={{display:"flex",gap:10,marginBottom:20}}>
+        {[
+          ["🧾", entrants.length, lang==="fr"?"entrées":"entradas"],
+          ["👥", uniqueNames.length, lang==="fr"?"participants":"participantes"],
+        ].map(([icon,val,label],i)=>(
+          <div key={i} style={{flex:1,background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:"1.2rem"}}>{icon}</div>
+            <div style={{fontWeight:800,fontSize:"1.4rem",color:accentColor}}>{val}</div>
+            <div style={{fontSize:"0.7rem",color:"#9ca3af",letterSpacing:0.5}}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {wheelNames.length === 0 ? (
+        <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
+          <div style={{fontSize:"3rem",marginBottom:10}}>🎱</div>
+          <div style={{fontWeight:600}}>
+            {lang==="fr"?"Aucun participant pour cette roulette encore.":"Aún no hay participantes en esta ruleta."}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Wheel */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:24}}>
+            {/* Pointer */}
+            <div style={{width:0,height:0,borderLeft:"14px solid transparent",borderRight:"14px solid transparent",borderTop:`28px solid ${accentColor}`,marginBottom:-4,zIndex:10,filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.3)))"}} />
+            <div style={{position:"relative",width:300,height:300}}>
+              <svg width="300" height="300" viewBox="0 0 300 300"
+                style={{transform:`rotate(${rotation}deg)`,transition:spinning?"transform 5s cubic-bezier(0.17,0.67,0.12,0.99)":"none",borderRadius:"50%",boxShadow:"0 4px 24px rgba(0,0,0,0.15)"}}>
+                {wheelNames.map((name, i) => {
+                  const total = wheelNames.length;
+                  const angle = 360 / total;
+                  const startAngle = i * angle;
+                  const endAngle = startAngle + angle;
+                  const start = polarToCartesian(150, 150, 140, startAngle);
+                  const end = polarToCartesian(150, 150, 140, endAngle);
+                  const mid = polarToCartesian(150, 150, 95, startAngle + angle / 2);
+                  const largeArc = angle > 180 ? 1 : 0;
+                  const color = COLORS[i % COLORS.length];
+                  const shortName = name.split(" ")[0] + (name.split(" ")[1] ? " " + name.split(" ")[1][0] + "." : "");
+                  const fontSize = total > 12 ? 8 : total > 8 ? 10 : 12;
+                  return (
+                    <g key={i}>
+                      <path d={`M 150 150 L ${start.x} ${start.y} A 140 140 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={color} stroke="#fff" strokeWidth="2" />
+                      <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle"
+                        fill="#fff" fontSize={fontSize} fontWeight="700"
+                        transform={`rotate(${startAngle + angle/2}, ${mid.x}, ${mid.y})`}
+                        style={{pointerEvents:"none"}}>
+                        {shortName}
+                      </text>
+                    </g>
+                  );
+                })}
+                <circle cx="150" cy="150" r="18" fill="#fff" stroke="#e5e7eb" strokeWidth="2"/>
+                <text x="150" y="150" textAnchor="middle" dominantBaseline="middle" fontSize="16">🎰</text>
+              </svg>
+            </div>
+          </div>
+
+          {/* Spin button - admin only */}
+          {isAdmin && (
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <button
+                onClick={spin}
+                disabled={spinning}
+                style={{background:spinning?"#9ca3af":accentColor,color:"#fff",border:"none",borderRadius:12,padding:"14px 40px",fontSize:"1rem",fontWeight:800,cursor:spinning?"not-allowed":"pointer",letterSpacing:1,boxShadow:`0 4px 16px ${accentColor}66`,transition:"all 0.2s",transform:spinning?"scale(0.97)":"scale(1)"}}>
+                {spinning
+                  ? (lang==="fr"?"Tirage en cours...":"Girando...")
+                  : (lang==="fr"?"🎰 Lancer la roulette":"🎰 Girar la ruleta")}
+              </button>
+            </div>
+          )}
+          {!isAdmin && (
+            <div style={{textAlign:"center",marginBottom:20,color:"#9ca3af",fontSize:"0.82rem"}}>
+              {lang==="fr"?"L'administrateur lancera la roulette.":"El administrador girará la ruleta."}
+            </div>
+          )}
+
+          {/* Winner display */}
+          {winner && (
+            <div style={{background:`linear-gradient(135deg,${accentColor},${isPremium?"#a0122a":"#c0392b"})`,borderRadius:14,padding:"20px",textAlign:"center",marginBottom:16,boxShadow:`0 8px 32px ${accentColor}44`}}>
+              <div style={{fontSize:"2.5rem",marginBottom:6}}>🎉</div>
+              <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.78rem",fontWeight:600,letterSpacing:2,marginBottom:4}}>
+                {lang==="fr"?"GAGNANT":"GANADOR"}
+              </div>
+              <div style={{color:"#fff",fontWeight:800,fontSize:"1.5rem",letterSpacing:0.5}}>{winner}</div>
+              <div style={{color:"rgba(255,255,255,0.7)",fontSize:"0.75rem",marginTop:6}}>
+                {isPremium?"🏆 Premio Principal":"🎟️ Premio General"}
+              </div>
+            </div>
+          )}
+
+          {/* Last saved winner */}
+          {!winner && currentSaved && (
+            <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px",textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:"0.72rem",color:"#9ca3af",marginBottom:4,letterSpacing:1}}>
+                {lang==="fr"?"DERNIER GAGNANT":"ÚLTIMO GANADOR"}
+              </div>
+              <div style={{fontWeight:700,color:BRAND.gray900,fontSize:"1.1rem"}}>{currentSaved.name}</div>
+              <div style={{fontSize:"0.7rem",color:"#9ca3af",marginTop:4}}>{new Date(currentSaved.date).toLocaleDateString()}</div>
+            </div>
+          )}
+
+          {/* Entrants list */}
+          <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px"}}>
+            <div style={{fontWeight:700,fontSize:"0.85rem",color:BRAND.gray900,marginBottom:10,letterSpacing:0.5}}>
+              {lang==="fr"?"Participants dans la roulette":"Participantes en la ruleta"}
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {uniqueNames.map(name => {
+                const count = entrants.filter(e=>e.name===name).length;
+                return (
+                  <div key={name} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:8,padding:"4px 10px",fontSize:"0.78rem",display:"flex",alignItems:"center",gap:5}}>
+                    <span style={{fontWeight:600,color:BRAND.gray900}}>{name}</span>
+                    <span style={{background:count>1?accentColor:"#e5e7eb",color:count>1?"#fff":"#9ca3af",borderRadius:6,padding:"1px 6px",fontSize:"0.65rem",fontWeight:800}}>
+                      {count} {lang==="fr"?count===1?"entrée":"entrées":count===1?"entrada":"entradas"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Helper for wheel geometry
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
 function FixtureView({ matches }) {
   const [activeGroup, setActiveGroup] = useState("A");
   const [activePhase, setActivePhase] = useState("groups");
@@ -2561,6 +2819,7 @@ export default function App() {
     {id:"clasificacion", label:t.nav.clasificacion},
     {id:"leaderboard", label:t.nav.reglamento},
     {id:"fixture", label:t.nav.resultados},
+    {id:"ruleta", label:t.nav.ruleta},
     ...(isAdmin ? [{id:"admin", label:t.nav.admin}] : []),
   ];
 
@@ -2655,6 +2914,7 @@ export default function App() {
         {view==="leaderboard" && <ReglamentoView />}
         {(view==="predictions"||view==="login") && <ParticipantForm participants={participants} setParticipants={setParticipants} matches={matches} adminUnlocked={adminUnlocked} invoices={invoices} setInvoices={setInvoices} currentUser={currentUser} setCurrentUser={setCurrentUser} setView={setView} initialStep={view==="login"?"login":undefined} />}
         {view==="fixture" && <FixtureView matches={matches} />}
+        {view==="ruleta" && <RuletaView participants={participants} matches={matches} invoices={invoices} isAdmin={isAdmin} />}
         {view==="admin" && <AdminPanel matches={matches} setMatches={setMatches} participants={participants} setParticipants={setParticipants} adminUnlocked={adminUnlocked} setAdminUnlocked={setAdminUnlocked} invoices={invoices} setInvoices={setInvoices} pinRequests={pinRequests} setPinRequests={setPinRequests} />}
         </ErrorBoundary>
       </main>
