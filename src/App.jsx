@@ -1738,13 +1738,14 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
 // ── RULETA VIEW ──────────────────────────────────────────────────────────────
 function RuletaView({ participants, matches, invoices, isAdmin }) {
   const lang = useLang();
-  const [activeRuleta, setActiveRuleta] = useState("premium"); // "premium" | "general"
+  const [activeRuleta, setActiveRuleta] = useState("premium");
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
-  const [rotation, setRotation] = useState(0);
   const [savedWinners, setSavedWinners] = useState({ premium: null, general: null });
+  const canvasRef = React.useRef(null);
+  const angleRef = React.useRef(0);
+  const rafRef = React.useRef(null);
 
-  // Load saved winners from Firebase
   useEffect(() => {
     const unsub = onSnapshot(RULETA_DOC, snap => {
       if (snap.exists()) setSavedWinners(snap.data().winners || { premium: null, general: null });
@@ -1752,20 +1753,15 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
     return () => unsub();
   }, []);
 
-  // Build participant lists
   function buildEntrants(type) {
     const entrants = [];
     participants.forEach(p => {
       const validInvoices = invoices.filter(inv =>
-        inv.participantId === p.id &&
-        inv.status === "approved" &&
-        parseFloat(inv.amount) >= 50
+        inv.participantId === p.id && inv.status === "approved" && parseFloat(inv.amount) >= 50
       );
       if (validInvoices.length === 0) return;
       const name = p.nombre ? p.nombre + " " + p.apellido : p.name;
-
       if (type === "premium") {
-        // Premium: one entry per approved $50+ invoice AND has at least one exact prediction
         const hasExact = matches.some(m => {
           if (m.realHome === null || m.realAway === null) return false;
           const pred = p.predictions?.[m.id];
@@ -1773,11 +1769,8 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
           return calcPoints(pred.home, pred.away, m.realHome, m.realAway) === 5;
         });
         if (!hasExact) return;
-        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
-      } else {
-        // General: one entry per approved $50+ invoice
-        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
       }
+      validInvoices.forEach(() => entrants.push({ id: p.id, name }));
     });
     return entrants;
   }
@@ -1785,52 +1778,108 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
   const premiumEntrants = buildEntrants("premium");
   const generalEntrants = buildEntrants("general");
   const entrants = activeRuleta === "premium" ? premiumEntrants : generalEntrants;
-
-  // Unique names for wheel display (wheel shows unique, but draw is weighted)
-  const uniqueNames = [...new Set(entrants.map(e => e.name))];
-  const wheelNames = entrants.map(e => e.name); // repeated for weighted wheel
-
-  // Colors for wheel segments
+  const wheelNames = entrants.map(e => e.name);
+  const uniqueNames = [...new Set(wheelNames)];
   const COLORS = ["#d3172e","#e67e22","#27ae60","#2980b9","#8e44ad","#f39c12","#16a085","#c0392b","#1abc9c","#2c3e50","#e74c3c","#3498db"];
-
-  function spin() {
-    if (spinning || entrants.length === 0) return;
-    setWinner(null);
-    setSpinning(true);
-
-    // Pick random winner
-    const pickedIndex = Math.floor(Math.random() * wheelNames.length);
-    const pickedName = wheelNames[pickedIndex];
-    const segmentAngle = 360 / wheelNames.length;
-
-    // The pointer is at the top (0°). We need segment[pickedIndex] to stop under the pointer.
-    // Segment[i] starts at i*segmentAngle and its center is at i*segmentAngle + segmentAngle/2.
-    // After rotation R, the segment center is at: segmentCenter - R (mod 360).
-    // We want that to equal 0 (top), so R = segmentCenter + full spins.
-    const segmentCenter = pickedIndex * segmentAngle + segmentAngle / 2;
-    const spins = 5 + Math.floor(Math.random() * 5);
-    // Normalize current rotation to [0,360) to avoid huge accumulated values drifting
-    const currentNorm = ((rotation % 360) + 360) % 360;
-    const totalRotation = currentNorm + spins * 360 + segmentCenter;
-
-    setRotation(totalRotation);
-
-    setTimeout(async () => {
-      setSpinning(false);
-      setWinner(pickedName);
-      // Save winner to Firebase
-      const newWinners = { ...savedWinners, [activeRuleta]: { name: pickedName, date: new Date().toISOString() } };
-      try { await setDoc(RULETA_DOC, { winners: newWinners }); } catch(e){}
-    }, 5000);
-  }
-
   const isPremium = activeRuleta === "premium";
   const accentColor = isPremium ? "#d3172e" : "#e67e22";
+
+  function drawWheel(angle) {
+    const canvas = canvasRef.current;
+    if (!canvas || wheelNames.length === 0) return;
+    const ctx = canvas.getContext("2d");
+    const cx = 150, cy = 150, r = 140;
+    const n = wheelNames.length;
+    const slice = (2 * Math.PI) / n;
+    ctx.clearRect(0, 0, 300, 300);
+    for (let i = 0; i < n; i++) {
+      const start = angle + i * slice;
+      const end = angle + (i + 1) * slice;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, end);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const midAngle = angle + i * slice + slice / 2;
+      const tx = cx + 90 * Math.cos(midAngle);
+      const ty = cy + 90 * Math.sin(midAngle);
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.fillStyle = "#fff";
+      const fontSize = n > 12 ? 8 : n > 8 ? 10 : 12;
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const shortName = wheelNames[i].split(" ")[0] + (wheelNames[i].split(" ")[1] ? " " + wheelNames[i].split(" ")[1][0] + "." : "");
+      ctx.fillText(shortName, 0, 0);
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = "16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("\u{1F3B0}", cx, cy);
+  }
+
+  useEffect(() => {
+    angleRef.current = 0;
+    drawWheel(0);
+  }, [activeRuleta, entrants.length]);
+
+  function spin() {
+    if (spinning || wheelNames.length === 0) return;
+    setWinner(null);
+    setSpinning(true);
+    const pickedIndex = Math.floor(Math.random() * wheelNames.length);
+    const pickedName = wheelNames[pickedIndex];
+    const n = wheelNames.length;
+    const slice = (2 * Math.PI) / n;
+    // Pointer is at top = -PI/2.
+    // We want: finalAngle + pickedIndex*slice + slice/2 = -PI/2
+    // So: finalAngle = -PI/2 - pickedIndex*slice - slice/2
+    const targetAngle = -Math.PI / 2 - pickedIndex * slice - slice / 2;
+    const spins = 5 + Math.floor(Math.random() * 5);
+    const startAngle = angleRef.current;
+    const totalDelta = (targetAngle - startAngle) + spins * 2 * Math.PI;
+    const duration = 5000;
+    const startTime = performance.now();
+    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+    function frame(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const cur = startAngle + totalDelta * easeOut(t);
+      angleRef.current = cur;
+      drawWheel(cur);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(frame);
+      } else {
+        angleRef.current = targetAngle;
+        drawWheel(targetAngle);
+        setSpinning(false);
+        setWinner(pickedName);
+        const newWinners = { ...savedWinners, [activeRuleta]: { name: pickedName, date: new Date().toISOString() } };
+        setDoc(RULETA_DOC, { winners: newWinners }).catch(()=>{});
+      }
+    }
+    rafRef.current = requestAnimationFrame(frame);
+  }
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
   const currentSaved = savedWinners[activeRuleta];
 
   return (
     <div className="fi" style={{maxWidth:600,margin:"0 auto"}}>
-      {/* Header */}
       <div style={{textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:"2rem",marginBottom:4}}>🎰</div>
         <div style={{fontWeight:800,fontSize:"1.3rem",color:BRAND.gray900,letterSpacing:1}}>
@@ -1841,32 +1890,25 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
         </div>
       </div>
 
-      {/* Toggle Premium / General */}
       <div style={{display:"flex",gap:0,marginBottom:20,borderRadius:10,overflow:"hidden",border:"2px solid #e5e7eb"}}>
         {[["premium","🏆 "+(lang==="fr"?"Premium":"Premium"),"#d3172e"],["general","🎟️ "+(lang==="fr"?"Général":"General"),"#e67e22"]].map(([id,label,color])=>(
-          <button key={id} onClick={()=>{setActiveRuleta(id);setWinner(null);}}
+          <button key={id} onClick={()=>{if(!spinning){setActiveRuleta(id);setWinner(null);}}}
             style={{flex:1,padding:"10px",border:"none",cursor:"pointer",fontWeight:700,fontSize:"0.85rem",
-              background:activeRuleta===id?color:"#fff",
-              color:activeRuleta===id?"#fff":"#6b7280",
-              transition:"all 0.2s"}}>
+              background:activeRuleta===id?color:"#fff",color:activeRuleta===id?"#fff":"#6b7280",transition:"all 0.2s"}}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Info banner */}
       <div style={{background:isPremium?"#fff5f5":"#fff7ed",border:`1px solid ${isPremium?"#fca5a5":"#fed7aa"}`,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:"0.8rem",color:isPremium?"#991b1b":"#92400e"}}>
         {isPremium
           ? (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+ — réservé aux participants avec au moins un pronostic exact 🎯":"Entradas: 1 por factura aprobada de $50+ — solo para participantes con al menos un pronóstico exacto 🎯")
-          : (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+. Plus de factures = plus de chances de gagner ! 🧾":"Entradas: 1 por factura aprobada de $50+. ¡Más facturas = más chances de ganar! 🧾")
-        }
+          : (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+. Plus de factures = plus de chances ! 🧾":"Entradas: 1 por factura aprobada de $50+. ¡Más facturas = más chances de ganar! 🧾")}
       </div>
 
-      {/* Stats */}
       <div style={{display:"flex",gap:10,marginBottom:20}}>
-        {[
-          ["🧾", entrants.length, lang==="fr"?"entrées":"entradas"],
-          ["👥", uniqueNames.length, lang==="fr"?"participants":"participantes"],
+        {[["🧾", entrants.length, lang==="fr"?"entrées":"entradas"],
+          ["👥", uniqueNames.length, lang==="fr"?"participants":"participantes"]
         ].map(([icon,val,label],i)=>(
           <div key={i} style={{flex:1,background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:"10px",textAlign:"center"}}>
             <div style={{fontSize:"1.2rem"}}>{icon}</div>
@@ -1885,77 +1927,38 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
         </div>
       ) : (
         <>
-          {/* Wheel */}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:24}}>
-            {/* Pointer */}
-            <div style={{width:0,height:0,borderLeft:"14px solid transparent",borderRight:"14px solid transparent",borderTop:`28px solid ${accentColor}`,marginBottom:-4,zIndex:10,filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.3)))"}} />
-            <div style={{position:"relative",width:300,height:300}}>
-              <svg width="300" height="300" viewBox="0 0 300 300"
-                style={{transform:`rotate(${rotation}deg)`,transition:spinning?"transform 5s cubic-bezier(0.17,0.67,0.12,0.99)":"none",borderRadius:"50%",boxShadow:"0 4px 24px rgba(0,0,0,0.15)"}}>
-                {wheelNames.map((name, i) => {
-                  const total = wheelNames.length;
-                  const angle = 360 / total;
-                  const startAngle = i * angle;
-                  const endAngle = startAngle + angle;
-                  const start = polarToCartesian(150, 150, 140, startAngle);
-                  const end = polarToCartesian(150, 150, 140, endAngle);
-                  const mid = polarToCartesian(150, 150, 95, startAngle + angle / 2);
-                  const largeArc = angle > 180 ? 1 : 0;
-                  const color = COLORS[i % COLORS.length];
-                  const shortName = name.split(" ")[0] + (name.split(" ")[1] ? " " + name.split(" ")[1][0] + "." : "");
-                  const fontSize = total > 12 ? 8 : total > 8 ? 10 : 12;
-                  return (
-                    <g key={i}>
-                      <path d={`M 150 150 L ${start.x} ${start.y} A 140 140 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={color} stroke="#fff" strokeWidth="2" />
-                      <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle"
-                        fill="#fff" fontSize={fontSize} fontWeight="700"
-                        transform={`rotate(${startAngle + angle/2}, ${mid.x}, ${mid.y})`}
-                        style={{pointerEvents:"none"}}>
-                        {shortName}
-                      </text>
-                    </g>
-                  );
-                })}
-                <circle cx="150" cy="150" r="18" fill="#fff" stroke="#e5e7eb" strokeWidth="2"/>
-                <text x="150" y="150" textAnchor="middle" dominantBaseline="middle" fontSize="16">🎰</text>
-              </svg>
-            </div>
+            <div style={{width:0,height:0,borderLeft:"14px solid transparent",borderRight:"14px solid transparent",borderTop:`28px solid ${accentColor}`,marginBottom:-2,zIndex:10,filter:`drop-shadow(0 2px 3px rgba(0,0,0,0.3))`}} />
+            <canvas ref={canvasRef} width={300} height={300}
+              style={{borderRadius:"50%",boxShadow:"0 4px 24px rgba(0,0,0,0.15)",display:"block"}} />
           </div>
 
-          {/* Spin button - admin only */}
-          {isAdmin && (
+          {isAdmin ? (
             <div style={{textAlign:"center",marginBottom:20}}>
-              <button
-                onClick={spin}
-                disabled={spinning}
-                style={{background:spinning?"#9ca3af":accentColor,color:"#fff",border:"none",borderRadius:12,padding:"14px 40px",fontSize:"1rem",fontWeight:800,cursor:spinning?"not-allowed":"pointer",letterSpacing:1,boxShadow:`0 4px 16px ${accentColor}66`,transition:"all 0.2s",transform:spinning?"scale(0.97)":"scale(1)"}}>
-                {spinning
-                  ? (lang==="fr"?"Tirage en cours...":"Girando...")
-                  : (lang==="fr"?"🎰 Lancer la roulette":"🎰 Girar la ruleta")}
+              <button onClick={spin} disabled={spinning}
+                style={{background:spinning?"#9ca3af":accentColor,color:"#fff",border:"none",borderRadius:12,padding:"14px 40px",fontSize:"1rem",fontWeight:800,cursor:spinning?"not-allowed":"pointer",letterSpacing:1,boxShadow:`0 4px 16px ${accentColor}66`,transition:"all 0.2s"}}>
+                {spinning?(lang==="fr"?"Tirage en cours...":"Girando..."):(lang==="fr"?"🎰 Lancer la roulette":"🎰 Girar la ruleta")}
               </button>
             </div>
-          )}
-          {!isAdmin && (
+          ) : (
             <div style={{textAlign:"center",marginBottom:20,color:"#9ca3af",fontSize:"0.82rem"}}>
               {lang==="fr"?"L'administrateur lancera la roulette.":"El administrador girará la ruleta."}
             </div>
           )}
 
-          {/* Winner display */}
           {winner && (
             <div style={{background:`linear-gradient(135deg,${accentColor},${isPremium?"#a0122a":"#c0392b"})`,borderRadius:14,padding:"20px",textAlign:"center",marginBottom:16,boxShadow:`0 8px 32px ${accentColor}44`}}>
               <div style={{fontSize:"2.5rem",marginBottom:6}}>🎉</div>
               <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.78rem",fontWeight:600,letterSpacing:2,marginBottom:4}}>
                 {lang==="fr"?"GAGNANT":"GANADOR"}
               </div>
-              <div style={{color:"#fff",fontWeight:800,fontSize:"1.5rem",letterSpacing:0.5}}>{winner}</div>
+              <div style={{color:"#fff",fontWeight:800,fontSize:"1.5rem"}}>{winner}</div>
               <div style={{color:"rgba(255,255,255,0.7)",fontSize:"0.75rem",marginTop:6}}>
                 {isPremium?"🏆 Premio Principal":"🎟️ Premio General"}
               </div>
             </div>
           )}
 
-          {/* Last saved winner */}
           {!winner && currentSaved && (
             <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px",textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:"0.72rem",color:"#9ca3af",marginBottom:4,letterSpacing:1}}>
@@ -1966,9 +1969,8 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
             </div>
           )}
 
-          {/* Entrants list */}
           <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px"}}>
-            <div style={{fontWeight:700,fontSize:"0.85rem",color:BRAND.gray900,marginBottom:10,letterSpacing:0.5}}>
+            <div style={{fontWeight:700,fontSize:"0.85rem",color:BRAND.gray900,marginBottom:10}}>
               {lang==="fr"?"Participants dans la roulette":"Participantes en la ruleta"}
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
@@ -1991,11 +1993,6 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
   );
 }
 
-// Helper for wheel geometry
-function polarToCartesian(cx, cy, r, angleDeg) {
-  const rad = (angleDeg - 90) * Math.PI / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
 
 function FixtureView({ matches }) {
   const [activeGroup, setActiveGroup] = useState("A");
