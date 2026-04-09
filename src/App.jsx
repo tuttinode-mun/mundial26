@@ -135,17 +135,17 @@ const T = {
 
 // GROUPS
 const GROUPS = {
-  A: ["México","Corea del Sur","Sudáfrica","Dinamarca*"],
-  B: ["Canadá","Suiza","Catar","Italia*"],
-  C: ["Brasil","Haití","Marruecos","Escocia"],
-  D: ["Estados Unidos","Australia","Paraguay","Turquía*"],
-  E: ["Alemania","Costa de Marfil","Ecuador","Curazao"],
-  F: ["Países Bajos","Japón","Túnez","Ucrania*"],
-  G: ["Bélgica","Irán","Egipto","Nueva Zelanda"],
-  H: ["España","Arabia Saudí","Uruguay","Cabo Verde"],
-  I: ["Francia","Noruega","Senegal","Irak*"],
-  J: ["Argentina","Austria","Argelia","Jordania"],
-  K: ["Portugal","Uzbekistán","Colombia","Jamaica*"],
+  A: ["México","Sudáfrica","Corea del Sur","Chequia"],
+  B: ["Canadá","Bosnia y Herzegovina","Catar","Suiza"],
+  C: ["Brasil","Marruecos","Haití","Escocia"],
+  D: ["Estados Unidos","Paraguay","Australia","Turquía"],
+  E: ["Alemania","Curazao","Costa de Marfil","Ecuador"],
+  F: ["Países Bajos","Japón","Suecia","Túnez"],
+  G: ["Bélgica","Egipto","Irán","Nueva Zelanda"],
+  H: ["España","Cabo Verde","Arabia Saudí","Uruguay"],
+  I: ["Francia","Senegal","Irak","Noruega"],
+  J: ["Argentina","Argelia","Austria","Jordania"],
+  K: ["Portugal","DR Congo","Uzbekistán","Colombia"],
   L: ["Inglaterra","Croacia","Ghana","Panamá"],
 }
 
@@ -186,18 +186,15 @@ function isPhaseLocked(phase, adminUnlocked = {}) {
 
 function isMatchLocked(match, adminUnlocked = {}) {
   if (!match) return false;
-  // Groups: locked globally on June 10
-  if (match.phase === "groups") {
-    if (adminUnlocked["groups"]) return false;
-    if (adminUnlocked["groups_forced"]) return true;
-    return new Date() >= LOCK_DATES["groups"];
-  }
-  // Elimination: check per-match manual lock first, then auto 24h before lockTime
-  if (adminUnlocked["match_"+match.id]) return false;       // manually unlocked
+  // Per-match manual override (admin)
+  if (adminUnlocked["match_"+match.id]) return false;        // manually unlocked
   if (adminUnlocked["match_"+match.id+"_forced"]) return true; // manually locked
+  // Phase-level override (admin)
   if (adminUnlocked[match.phase]) return false;
   if (adminUnlocked[match.phase+"_forced"]) return true;
+  // All matches: lock 24h before their lockTime
   if (match.lockTime) return new Date() >= new Date(new Date(match.lockTime).getTime() - 24*60*60*1000);
+  // Fallback to phase lock
   return isPhaseLocked(match.phase, adminUnlocked);
 }
 
@@ -205,89 +202,89 @@ function generateGroupMatches() {
   // Official FIFA 2026 schedule - all 72 group matches
   const matches = [
     // GRUPO A
-    {id:1,  phase:"groups",group:"A",date:"11 Jun",home:"México",            away:"Sudáfrica",         realHome:null,realAway:null,lockTime:"2026-06-11T15:00:00"},
-    {id:2,  phase:"groups",group:"A",date:"11 Jun",home:"Corea del Sur",     away:"Dinamarca*",        realHome:null,realAway:null,lockTime:"2026-06-11T18:00:00"},
-    {id:3,  phase:"groups",group:"A",date:"18 Jun",home:"Dinamarca*",        away:"Sudáfrica",         realHome:null,realAway:null,lockTime:"2026-06-18T15:00:00"},
-    {id:4,  phase:"groups",group:"A",date:"18 Jun",home:"México",            away:"Corea del Sur",     realHome:null,realAway:null,lockTime:"2026-06-18T18:00:00"},
-    {id:5,  phase:"groups",group:"A",date:"24 Jun",home:"Dinamarca*",        away:"México",            realHome:null,realAway:null,lockTime:"2026-06-24T15:00:00"},
-    {id:6,  phase:"groups",group:"A",date:"24 Jun",home:"Sudáfrica",         away:"Corea del Sur",     realHome:null,realAway:null,lockTime:"2026-06-24T15:00:00"},
+    {id:1,  phase:"groups",group:"A",date:"11 Jun",home:"México",             away:"Sudáfrica",          realHome:null,realAway:null,lockTime:"2026-06-11T15:00:00"},
+    {id:2,  phase:"groups",group:"A",date:"11 Jun",home:"Corea del Sur",      away:"Chequia",            realHome:null,realAway:null,lockTime:"2026-06-11T22:00:00"},
+    {id:3,  phase:"groups",group:"A",date:"18 Jun",home:"Chequia",            away:"Sudáfrica",          realHome:null,realAway:null,lockTime:"2026-06-18T12:00:00"},
+    {id:4,  phase:"groups",group:"A",date:"18 Jun",home:"México",             away:"Corea del Sur",      realHome:null,realAway:null,lockTime:"2026-06-18T21:00:00"},
+    {id:5,  phase:"groups",group:"A",date:"24 Jun",home:"Chequia",            away:"México",             realHome:null,realAway:null,lockTime:"2026-06-24T21:00:00"},
+    {id:6,  phase:"groups",group:"A",date:"24 Jun",home:"Sudáfrica",          away:"Corea del Sur",      realHome:null,realAway:null,lockTime:"2026-06-24T21:00:00"},
     // GRUPO B
-    {id:7,  phase:"groups",group:"B",date:"12 Jun",home:"Canadá",            away:"Italia*",           realHome:null,realAway:null,lockTime:"2026-06-12T15:00:00"},
-    {id:8,  phase:"groups",group:"B",date:"13 Jun",home:"Catar",             away:"Suiza",             realHome:null,realAway:null,lockTime:"2026-06-13T15:00:00"},
-    {id:9,  phase:"groups",group:"B",date:"18 Jun",home:"Suiza",             away:"Italia*",           realHome:null,realAway:null,lockTime:"2026-06-18T12:00:00"},
-    {id:10, phase:"groups",group:"B",date:"18 Jun",home:"Canadá",            away:"Catar",             realHome:null,realAway:null,lockTime:"2026-06-18T21:00:00"},
-    {id:11, phase:"groups",group:"B",date:"24 Jun",home:"Suiza",             away:"Canadá",            realHome:null,realAway:null,lockTime:"2026-06-24T18:00:00"},
-    {id:12, phase:"groups",group:"B",date:"24 Jun",home:"Italia*",           away:"Catar",             realHome:null,realAway:null,lockTime:"2026-06-24T18:00:00"},
+    {id:7,  phase:"groups",group:"B",date:"12 Jun",home:"Canadá",             away:"Bosnia y Herzegovina",realHome:null,realAway:null,lockTime:"2026-06-12T15:00:00"},
+    {id:8,  phase:"groups",group:"B",date:"13 Jun",home:"Catar",              away:"Suiza",              realHome:null,realAway:null,lockTime:"2026-06-13T15:00:00"},
+    {id:9,  phase:"groups",group:"B",date:"18 Jun",home:"Suiza",              away:"Bosnia y Herzegovina",realHome:null,realAway:null,lockTime:"2026-06-18T15:00:00"},
+    {id:10, phase:"groups",group:"B",date:"18 Jun",home:"Canadá",             away:"Catar",              realHome:null,realAway:null,lockTime:"2026-06-18T18:00:00"},
+    {id:11, phase:"groups",group:"B",date:"24 Jun",home:"Suiza",              away:"Canadá",             realHome:null,realAway:null,lockTime:"2026-06-24T15:00:00"},
+    {id:12, phase:"groups",group:"B",date:"24 Jun",home:"Bosnia y Herzegovina",away:"Catar",             realHome:null,realAway:null,lockTime:"2026-06-24T15:00:00"},
     // GRUPO C
-    {id:13, phase:"groups",group:"C",date:"13 Jun",home:"Brasil",            away:"Marruecos",         realHome:null,realAway:null,lockTime:"2026-06-13T18:00:00"},
-    {id:14, phase:"groups",group:"C",date:"13 Jun",home:"Haití",             away:"Escocia",           realHome:null,realAway:null,lockTime:"2026-06-13T21:00:00"},
-    {id:15, phase:"groups",group:"C",date:"19 Jun",home:"Escocia",           away:"Marruecos",         realHome:null,realAway:null,lockTime:"2026-06-19T15:00:00"},
-    {id:16, phase:"groups",group:"C",date:"19 Jun",home:"Brasil",            away:"Haití",             realHome:null,realAway:null,lockTime:"2026-06-19T18:00:00"},
-    {id:17, phase:"groups",group:"C",date:"24 Jun",home:"Brasil",            away:"Escocia",           realHome:null,realAway:null,lockTime:"2026-06-25T15:00:00"},
-    {id:18, phase:"groups",group:"C",date:"24 Jun",home:"Marruecos",         away:"Haití",             realHome:null,realAway:null,lockTime:"2026-06-25T15:00:00"},
+    {id:13, phase:"groups",group:"C",date:"13 Jun",home:"Brasil",             away:"Marruecos",          realHome:null,realAway:null,lockTime:"2026-06-13T18:00:00"},
+    {id:14, phase:"groups",group:"C",date:"13 Jun",home:"Haití",              away:"Escocia",            realHome:null,realAway:null,lockTime:"2026-06-13T21:00:00"},
+    {id:15, phase:"groups",group:"C",date:"19 Jun",home:"Escocia",            away:"Marruecos",          realHome:null,realAway:null,lockTime:"2026-06-19T18:00:00"},
+    {id:16, phase:"groups",group:"C",date:"19 Jun",home:"Brasil",             away:"Haití",              realHome:null,realAway:null,lockTime:"2026-06-19T21:00:00"},
+    {id:17, phase:"groups",group:"C",date:"24 Jun",home:"Escocia",            away:"Brasil",             realHome:null,realAway:null,lockTime:"2026-06-24T18:00:00"},
+    {id:18, phase:"groups",group:"C",date:"24 Jun",home:"Marruecos",          away:"Haití",              realHome:null,realAway:null,lockTime:"2026-06-24T18:00:00"},
     // GRUPO D
-    {id:19, phase:"groups",group:"D",date:"12 Jun",home:"Estados Unidos",    away:"Paraguay",          realHome:null,realAway:null,lockTime:"2026-06-12T18:00:00"},
-    {id:20, phase:"groups",group:"D",date:"12 Jun",home:"Australia",         away:"Turquía*",          realHome:null,realAway:null,lockTime:"2026-06-12T21:00:00"},
-    {id:21, phase:"groups",group:"D",date:"18 Jun",home:"Turquía*",          away:"Paraguay",          realHome:null,realAway:null,lockTime:"2026-06-18T18:00:00"},
-    {id:22, phase:"groups",group:"D",date:"19 Jun",home:"Estados Unidos",    away:"Australia",         realHome:null,realAway:null,lockTime:"2026-06-19T21:00:00"},
-    {id:23, phase:"groups",group:"D",date:"25 Jun",home:"Turquía*",          away:"Estados Unidos",    realHome:null,realAway:null,lockTime:"2026-06-25T18:00:00"},
-    {id:24, phase:"groups",group:"D",date:"25 Jun",home:"Paraguay",          away:"Australia",         realHome:null,realAway:null,lockTime:"2026-06-25T18:00:00"},
+    {id:19, phase:"groups",group:"D",date:"12 Jun",home:"Estados Unidos",     away:"Paraguay",           realHome:null,realAway:null,lockTime:"2026-06-12T21:00:00"},
+    {id:20, phase:"groups",group:"D",date:"13 Jun",home:"Australia",          away:"Turquía",            realHome:null,realAway:null,lockTime:"2026-06-13T00:00:00"},
+    {id:21, phase:"groups",group:"D",date:"19 Jun",home:"Turquía",            away:"Paraguay",           realHome:null,realAway:null,lockTime:"2026-06-19T00:00:00"},
+    {id:22, phase:"groups",group:"D",date:"19 Jun",home:"Estados Unidos",     away:"Australia",          realHome:null,realAway:null,lockTime:"2026-06-19T15:00:00"},
+    {id:23, phase:"groups",group:"D",date:"25 Jun",home:"Turquía",            away:"Estados Unidos",     realHome:null,realAway:null,lockTime:"2026-06-25T22:00:00"},
+    {id:24, phase:"groups",group:"D",date:"25 Jun",home:"Paraguay",           away:"Australia",          realHome:null,realAway:null,lockTime:"2026-06-25T22:00:00"},
     // GRUPO E
-    {id:25, phase:"groups",group:"E",date:"14 Jun",home:"Alemania",          away:"Curazao",           realHome:null,realAway:null,lockTime:"2026-06-14T15:00:00"},
-    {id:26, phase:"groups",group:"E",date:"14 Jun",home:"Costa de Marfil",   away:"Ecuador",           realHome:null,realAway:null,lockTime:"2026-06-14T18:00:00"},
-    {id:27, phase:"groups",group:"E",date:"20 Jun",home:"Alemania",          away:"Costa de Marfil",   realHome:null,realAway:null,lockTime:"2026-06-20T15:00:00"},
-    {id:28, phase:"groups",group:"E",date:"20 Jun",home:"Ecuador",           away:"Curazao",           realHome:null,realAway:null,lockTime:"2026-06-20T18:00:00"},
-    {id:29, phase:"groups",group:"E",date:"25 Jun",home:"Curazao",           away:"Costa de Marfil",   realHome:null,realAway:null,lockTime:"2026-06-26T15:00:00"},
-    {id:30, phase:"groups",group:"E",date:"25 Jun",home:"Ecuador",           away:"Alemania",          realHome:null,realAway:null,lockTime:"2026-06-26T15:00:00"},
+    {id:25, phase:"groups",group:"E",date:"14 Jun",home:"Alemania",           away:"Curazao",            realHome:null,realAway:null,lockTime:"2026-06-14T13:00:00"},
+    {id:26, phase:"groups",group:"E",date:"14 Jun",home:"Costa de Marfil",    away:"Ecuador",            realHome:null,realAway:null,lockTime:"2026-06-14T19:00:00"},
+    {id:27, phase:"groups",group:"E",date:"20 Jun",home:"Alemania",           away:"Costa de Marfil",    realHome:null,realAway:null,lockTime:"2026-06-20T16:00:00"},
+    {id:28, phase:"groups",group:"E",date:"20 Jun",home:"Ecuador",            away:"Curazao",            realHome:null,realAway:null,lockTime:"2026-06-20T20:00:00"},
+    {id:29, phase:"groups",group:"E",date:"25 Jun",home:"Curazao",            away:"Costa de Marfil",    realHome:null,realAway:null,lockTime:"2026-06-25T16:00:00"},
+    {id:30, phase:"groups",group:"E",date:"25 Jun",home:"Ecuador",            away:"Alemania",           realHome:null,realAway:null,lockTime:"2026-06-25T16:00:00"},
     // GRUPO F
-    {id:31, phase:"groups",group:"F",date:"14 Jun",home:"Países Bajos",      away:"Japón",             realHome:null,realAway:null,lockTime:"2026-06-15T15:00:00"},
-    {id:32, phase:"groups",group:"F",date:"14 Jun",home:"Ucrania*",          away:"Túnez",             realHome:null,realAway:null,lockTime:"2026-06-15T18:00:00"},
-    {id:33, phase:"groups",group:"F",date:"19 Jun",home:"Túnez",             away:"Japón",             realHome:null,realAway:null,lockTime:"2026-06-20T21:00:00"},
-    {id:34, phase:"groups",group:"F",date:"20 Jun",home:"Países Bajos",      away:"Ucrania*",          realHome:null,realAway:null,lockTime:"2026-06-21T15:00:00"},
-    {id:35, phase:"groups",group:"F",date:"25 Jun",home:"Japón",             away:"Ucrania*",          realHome:null,realAway:null,lockTime:"2026-06-26T18:00:00"},
-    {id:36, phase:"groups",group:"F",date:"25 Jun",home:"Túnez",             away:"Países Bajos",      realHome:null,realAway:null,lockTime:"2026-06-26T18:00:00"},
+    {id:31, phase:"groups",group:"F",date:"14 Jun",home:"Países Bajos",       away:"Japón",              realHome:null,realAway:null,lockTime:"2026-06-14T16:00:00"},
+    {id:32, phase:"groups",group:"F",date:"14 Jun",home:"Suecia",             away:"Túnez",              realHome:null,realAway:null,lockTime:"2026-06-14T22:00:00"},
+    {id:33, phase:"groups",group:"F",date:"20 Jun",home:"Países Bajos",       away:"Suecia",             realHome:null,realAway:null,lockTime:"2026-06-20T13:00:00"},
+    {id:34, phase:"groups",group:"F",date:"20 Jun",home:"Túnez",              away:"Japón",              realHome:null,realAway:null,lockTime:"2026-06-20T00:00:00"},
+    {id:35, phase:"groups",group:"F",date:"25 Jun",home:"Japón",              away:"Suecia",             realHome:null,realAway:null,lockTime:"2026-06-25T19:00:00"},
+    {id:36, phase:"groups",group:"F",date:"25 Jun",home:"Túnez",              away:"Países Bajos",       realHome:null,realAway:null,lockTime:"2026-06-25T19:00:00"},
     // GRUPO G
-    {id:37, phase:"groups",group:"G",date:"15 Jun",home:"Bélgica",           away:"Egipto",            realHome:null,realAway:null,lockTime:"2026-06-15T21:00:00"},
-    {id:38, phase:"groups",group:"G",date:"15 Jun",home:"Irán",              away:"Nueva Zelanda",     realHome:null,realAway:null,lockTime:"2026-06-16T15:00:00"},
-    {id:39, phase:"groups",group:"G",date:"21 Jun",home:"Bélgica",           away:"Irán",              realHome:null,realAway:null,lockTime:"2026-06-21T18:00:00"},
-    {id:40, phase:"groups",group:"G",date:"21 Jun",home:"Nueva Zelanda",     away:"Egipto",            realHome:null,realAway:null,lockTime:"2026-06-21T21:00:00"},
-    {id:41, phase:"groups",group:"G",date:"26 Jun",home:"Egipto",            away:"Irán",              realHome:null,realAway:null,lockTime:"2026-06-26T21:00:00"},
-    {id:42, phase:"groups",group:"G",date:"26 Jun",home:"Nueva Zelanda",     away:"Bélgica",           realHome:null,realAway:null,lockTime:"2026-06-26T21:00:00"},
+    {id:37, phase:"groups",group:"G",date:"15 Jun",home:"Bélgica",            away:"Egipto",             realHome:null,realAway:null,lockTime:"2026-06-15T15:00:00"},
+    {id:38, phase:"groups",group:"G",date:"15 Jun",home:"Irán",               away:"Nueva Zelanda",      realHome:null,realAway:null,lockTime:"2026-06-15T21:00:00"},
+    {id:39, phase:"groups",group:"G",date:"21 Jun",home:"Bélgica",            away:"Irán",               realHome:null,realAway:null,lockTime:"2026-06-21T15:00:00"},
+    {id:40, phase:"groups",group:"G",date:"21 Jun",home:"Nueva Zelanda",      away:"Egipto",             realHome:null,realAway:null,lockTime:"2026-06-21T21:00:00"},
+    {id:41, phase:"groups",group:"G",date:"26 Jun",home:"Egipto",             away:"Irán",               realHome:null,realAway:null,lockTime:"2026-06-26T23:00:00"},
+    {id:42, phase:"groups",group:"G",date:"26 Jun",home:"Nueva Zelanda",      away:"Bélgica",            realHome:null,realAway:null,lockTime:"2026-06-26T23:00:00"},
     // GRUPO H
-    {id:43, phase:"groups",group:"H",date:"15 Jun",home:"España",            away:"Cabo Verde",        realHome:null,realAway:null,lockTime:"2026-06-16T18:00:00"},
-    {id:44, phase:"groups",group:"H",date:"15 Jun",home:"Arabia Saudí",      away:"Uruguay",           realHome:null,realAway:null,lockTime:"2026-06-16T21:00:00"},
-    {id:45, phase:"groups",group:"H",date:"21 Jun",home:"España",            away:"Arabia Saudí",      realHome:null,realAway:null,lockTime:"2026-06-22T15:00:00"},
-    {id:46, phase:"groups",group:"H",date:"21 Jun",home:"Uruguay",           away:"Cabo Verde",        realHome:null,realAway:null,lockTime:"2026-06-22T18:00:00"},
-    {id:47, phase:"groups",group:"H",date:"26 Jun",home:"Cabo Verde",        away:"Arabia Saudí",      realHome:null,realAway:null,lockTime:"2026-06-27T15:00:00"},
-    {id:48, phase:"groups",group:"H",date:"26 Jun",home:"Uruguay",           away:"España",            realHome:null,realAway:null,lockTime:"2026-06-27T15:00:00"},
+    {id:43, phase:"groups",group:"H",date:"15 Jun",home:"España",             away:"Cabo Verde",         realHome:null,realAway:null,lockTime:"2026-06-15T12:00:00"},
+    {id:44, phase:"groups",group:"H",date:"15 Jun",home:"Arabia Saudí",       away:"Uruguay",            realHome:null,realAway:null,lockTime:"2026-06-15T18:00:00"},
+    {id:45, phase:"groups",group:"H",date:"21 Jun",home:"España",             away:"Arabia Saudí",       realHome:null,realAway:null,lockTime:"2026-06-21T12:00:00"},
+    {id:46, phase:"groups",group:"H",date:"21 Jun",home:"Uruguay",            away:"Cabo Verde",         realHome:null,realAway:null,lockTime:"2026-06-21T18:00:00"},
+    {id:47, phase:"groups",group:"H",date:"26 Jun",home:"Cabo Verde",         away:"Arabia Saudí",       realHome:null,realAway:null,lockTime:"2026-06-26T20:00:00"},
+    {id:48, phase:"groups",group:"H",date:"26 Jun",home:"Uruguay",            away:"España",             realHome:null,realAway:null,lockTime:"2026-06-26T20:00:00"},
     // GRUPO I
-    {id:49, phase:"groups",group:"I",date:"16 Jun",home:"Francia",           away:"Senegal",           realHome:null,realAway:null,lockTime:"2026-06-17T15:00:00"},
-    {id:50, phase:"groups",group:"I",date:"16 Jun",home:"Irak*",             away:"Noruega",           realHome:null,realAway:null,lockTime:"2026-06-17T18:00:00"},
-    {id:51, phase:"groups",group:"I",date:"22 Jun",home:"Francia",           away:"Irak*",             realHome:null,realAway:null,lockTime:"2026-06-22T21:00:00"},
-    {id:52, phase:"groups",group:"I",date:"22 Jun",home:"Noruega",           away:"Senegal",           realHome:null,realAway:null,lockTime:"2026-06-23T15:00:00"},
-    {id:53, phase:"groups",group:"I",date:"26 Jun",home:"Noruega",           away:"Francia",           realHome:null,realAway:null,lockTime:"2026-06-27T18:00:00"},
-    {id:54, phase:"groups",group:"I",date:"26 Jun",home:"Senegal",           away:"Irak*",             realHome:null,realAway:null,lockTime:"2026-06-27T18:00:00"},
+    {id:49, phase:"groups",group:"I",date:"16 Jun",home:"Francia",            away:"Senegal",            realHome:null,realAway:null,lockTime:"2026-06-16T15:00:00"},
+    {id:50, phase:"groups",group:"I",date:"16 Jun",home:"Irak",               away:"Noruega",            realHome:null,realAway:null,lockTime:"2026-06-16T18:00:00"},
+    {id:51, phase:"groups",group:"I",date:"22 Jun",home:"Francia",            away:"Irak",               realHome:null,realAway:null,lockTime:"2026-06-22T17:00:00"},
+    {id:52, phase:"groups",group:"I",date:"22 Jun",home:"Noruega",            away:"Senegal",            realHome:null,realAway:null,lockTime:"2026-06-22T20:00:00"},
+    {id:53, phase:"groups",group:"I",date:"26 Jun",home:"Noruega",            away:"Francia",            realHome:null,realAway:null,lockTime:"2026-06-26T15:00:00"},
+    {id:54, phase:"groups",group:"I",date:"26 Jun",home:"Senegal",            away:"Irak",               realHome:null,realAway:null,lockTime:"2026-06-26T15:00:00"},
     // GRUPO J
-    {id:55, phase:"groups",group:"J",date:"15 Jun",home:"Austria",           away:"Jordania",          realHome:null,realAway:null,lockTime:"2026-06-17T21:00:00"},
-    {id:56, phase:"groups",group:"J",date:"16 Jun",home:"Argentina",         away:"Argelia",           realHome:null,realAway:null,lockTime:"2026-06-18T15:00:00"},
-    {id:57, phase:"groups",group:"J",date:"22 Jun",home:"Argentina",         away:"Austria",           realHome:null,realAway:null,lockTime:"2026-06-23T18:00:00"},
-    {id:58, phase:"groups",group:"J",date:"22 Jun",home:"Jordania",          away:"Argelia",           realHome:null,realAway:null,lockTime:"2026-06-23T21:00:00"},
-    {id:59, phase:"groups",group:"J",date:"27 Jun",home:"Argelia",           away:"Austria",           realHome:null,realAway:null,lockTime:"2026-06-27T21:00:00"},
-    {id:60, phase:"groups",group:"J",date:"27 Jun",home:"Jordania",          away:"Argentina",         realHome:null,realAway:null,lockTime:"2026-06-27T21:00:00"},
+    {id:55, phase:"groups",group:"J",date:"16 Jun",home:"Argentina",          away:"Argelia",            realHome:null,realAway:null,lockTime:"2026-06-16T21:00:00"},
+    {id:56, phase:"groups",group:"J",date:"17 Jun",home:"Austria",            away:"Jordania",           realHome:null,realAway:null,lockTime:"2026-06-17T00:00:00"},
+    {id:57, phase:"groups",group:"J",date:"22 Jun",home:"Argentina",          away:"Austria",            realHome:null,realAway:null,lockTime:"2026-06-22T13:00:00"},
+    {id:58, phase:"groups",group:"J",date:"22 Jun",home:"Jordania",           away:"Argelia",            realHome:null,realAway:null,lockTime:"2026-06-22T23:00:00"},
+    {id:59, phase:"groups",group:"J",date:"27 Jun",home:"Argelia",            away:"Austria",            realHome:null,realAway:null,lockTime:"2026-06-27T22:00:00"},
+    {id:60, phase:"groups",group:"J",date:"27 Jun",home:"Jordania",           away:"Argentina",          realHome:null,realAway:null,lockTime:"2026-06-27T22:00:00"},
     // GRUPO K
-    {id:61, phase:"groups",group:"K",date:"17 Jun",home:"Portugal",          away:"Jamaica*",          realHome:null,realAway:null,lockTime:"2026-06-17T12:00:00"},
-    {id:62, phase:"groups",group:"K",date:"17 Jun",home:"Uzbekistán",        away:"Colombia",          realHome:null,realAway:null,lockTime:"2026-06-17T21:00:00"},
+    {id:61, phase:"groups",group:"K",date:"17 Jun",home:"Portugal",           away:"DR Congo",           realHome:null,realAway:null,lockTime:"2026-06-17T13:00:00"},
+    {id:62, phase:"groups",group:"K",date:"17 Jun",home:"Uzbekistán",         away:"Colombia",           realHome:null,realAway:null,lockTime:"2026-06-17T22:00:00"},
     {id:63, phase:"groups",group:"K",date:"23 Jun",home:"Portugal",          away:"Uzbekistán",        realHome:null,realAway:null,lockTime:"2026-06-23T12:00:00"},
-    {id:64, phase:"groups",group:"K",date:"23 Jun",home:"Colombia",          away:"Jamaica*",          realHome:null,realAway:null,lockTime:"2026-06-23T18:00:00"},
-    {id:65, phase:"groups",group:"K",date:"27 Jun",home:"Colombia",          away:"Portugal",          realHome:null,realAway:null,lockTime:"2026-06-28T12:00:00"},
-    {id:66, phase:"groups",group:"K",date:"27 Jun",home:"Jamaica*",          away:"Uzbekistán",        realHome:null,realAway:null,lockTime:"2026-06-28T12:00:00"},
+    {id:64, phase:"groups",group:"K",date:"23 Jun",home:"Colombia",          away:"DR Congo",          realHome:null,realAway:null,lockTime:"2026-06-23T22:00:00"},
+    {id:65, phase:"groups",group:"K",date:"27 Jun",home:"Colombia",          away:"Portugal",          realHome:null,realAway:null,lockTime:"2026-06-27T19:30:00"},
+    {id:66, phase:"groups",group:"K",date:"27 Jun",home:"DR Congo",          away:"Uzbekistán",        realHome:null,realAway:null,lockTime:"2026-06-27T19:30:00"},
     // GRUPO L
-    {id:67, phase:"groups",group:"L",date:"17 Jun",home:"Inglaterra",        away:"Croacia",           realHome:null,realAway:null,lockTime:"2026-06-17T15:00:00"},
-    {id:68, phase:"groups",group:"L",date:"17 Jun",home:"Ghana",             away:"Panamá",            realHome:null,realAway:null,lockTime:"2026-06-17T18:00:00"},
-    {id:69, phase:"groups",group:"L",date:"23 Jun",home:"Inglaterra",        away:"Ghana",             realHome:null,realAway:null,lockTime:"2026-06-23T15:00:00"},
-    {id:70, phase:"groups",group:"L",date:"23 Jun",home:"Panamá",            away:"Croacia",           realHome:null,realAway:null,lockTime:"2026-06-23T21:00:00"},
-    {id:71, phase:"groups",group:"L",date:"27 Jun",home:"Panamá",            away:"Inglaterra",        realHome:null,realAway:null,lockTime:"2026-06-28T15:00:00"},
-    {id:72, phase:"groups",group:"L",date:"27 Jun",home:"Croacia",           away:"Ghana",             realHome:null,realAway:null,lockTime:"2026-06-28T15:00:00"},
+    {id:67, phase:"groups",group:"L",date:"17 Jun",home:"Inglaterra",        away:"Croacia",           realHome:null,realAway:null,lockTime:"2026-06-17T16:00:00"},
+    {id:68, phase:"groups",group:"L",date:"17 Jun",home:"Ghana",             away:"Panamá",            realHome:null,realAway:null,lockTime:"2026-06-17T19:00:00"},
+    {id:69, phase:"groups",group:"L",date:"23 Jun",home:"Inglaterra",        away:"Ghana",             realHome:null,realAway:null,lockTime:"2026-06-23T16:00:00"},
+    {id:70, phase:"groups",group:"L",date:"23 Jun",home:"Panamá",            away:"Croacia",           realHome:null,realAway:null,lockTime:"2026-06-23T19:00:00"},
+    {id:71, phase:"groups",group:"L",date:"27 Jun",home:"Panamá",            away:"Inglaterra",        realHome:null,realAway:null,lockTime:"2026-06-27T17:00:00"},
+    {id:72, phase:"groups",group:"L",date:"27 Jun",home:"Croacia",           away:"Ghana",             realHome:null,realAway:null,lockTime:"2026-06-27T17:00:00"},
   ];
   return matches;
 }
@@ -1738,13 +1735,16 @@ function ParticipantForm({ participants, setParticipants, matches, adminUnlocked
 // ── RULETA VIEW ──────────────────────────────────────────────────────────────
 function RuletaView({ participants, matches, invoices, isAdmin }) {
   const lang = useLang();
-  const [activeRuleta, setActiveRuleta] = useState("premium"); // "premium" | "general"
+  const [activeRuleta, setActiveRuleta] = useState("premium");
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
-  const [rotation, setRotation] = useState(0);
   const [savedWinners, setSavedWinners] = useState({ premium: null, general: null });
+  const [offset, setOffset] = useState(0); // current scroll offset in px
+  const rafRef = React.useRef(null);
+  const offsetRef = React.useRef(0);
 
-  // Load saved winners from Firebase
+  const ITEM_HEIGHT = 64; // px per name slot
+
   useEffect(() => {
     const unsub = onSnapshot(RULETA_DOC, snap => {
       if (snap.exists()) setSavedWinners(snap.data().winners || { premium: null, general: null });
@@ -1752,20 +1752,15 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
     return () => unsub();
   }, []);
 
-  // Build participant lists
   function buildEntrants(type) {
     const entrants = [];
     participants.forEach(p => {
       const validInvoices = invoices.filter(inv =>
-        inv.participantId === p.id &&
-        inv.status === "approved" &&
-        parseFloat(inv.amount) >= 50
+        inv.participantId === p.id && inv.status === "approved" && parseFloat(inv.amount) >= 50
       );
       if (validInvoices.length === 0) return;
       const name = p.nombre ? p.nombre + " " + p.apellido : p.name;
-
       if (type === "premium") {
-        // Premium: one entry per approved $50+ invoice AND has at least one exact prediction
         const hasExact = matches.some(m => {
           if (m.realHome === null || m.realAway === null) return false;
           const pred = p.predictions?.[m.id];
@@ -1773,11 +1768,8 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
           return calcPoints(pred.home, pred.away, m.realHome, m.realAway) === 5;
         });
         if (!hasExact) return;
-        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
-      } else {
-        // General: one entry per approved $50+ invoice
-        validInvoices.forEach(() => entrants.push({ id: p.id, name }));
       }
+      validInvoices.forEach(() => entrants.push({ id: p.id, name }));
     });
     return entrants;
   }
@@ -1785,51 +1777,78 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
   const premiumEntrants = buildEntrants("premium");
   const generalEntrants = buildEntrants("general");
   const entrants = activeRuleta === "premium" ? premiumEntrants : generalEntrants;
+  const wheelNames = entrants.map(e => e.name);
+  const uniqueNames = [...new Set(wheelNames)];
+  const isPremium = activeRuleta === "premium";
+  const accentColor = isPremium ? "#d3172e" : "#e67e22";
 
-  // Unique names for wheel display (wheel shows unique, but draw is weighted)
-  const uniqueNames = [...new Set(entrants.map(e => e.name))];
-  const wheelNames = entrants.map(e => e.name); // repeated for weighted wheel
-
-  // Colors for wheel segments
-  const COLORS = ["#d3172e","#e67e22","#27ae60","#2980b9","#8e44ad","#f39c12","#16a085","#c0392b","#1abc9c","#2c3e50","#e74c3c","#3498db"];
+  // Build infinite looping list (repeat names many times)
+  const REPEATS = 20;
+  const loopNames = wheelNames.length > 0
+    ? Array.from({length: REPEATS}, () => wheelNames).flat()
+    : [];
 
   function spin() {
-    if (spinning || entrants.length === 0) return;
+    if (spinning || wheelNames.length === 0) return;
     setWinner(null);
     setSpinning(true);
 
-    // Pick random winner
+    // Pick winner
     const pickedIndex = Math.floor(Math.random() * wheelNames.length);
     const pickedName = wheelNames[pickedIndex];
-    const segmentAngle = 360 / wheelNames.length;
 
-    // The pointer is at the top (0°). We need segment[pickedIndex] to stop under the pointer.
-    // Segment[i] starts at i*segmentAngle and its center is at i*segmentAngle + segmentAngle/2.
-    // After rotation R, the segment center is at: segmentCenter - R (mod 360).
-    // We want that to equal 0 (top), so R = segmentCenter + full spins.
-    const segmentCenter = pickedIndex * segmentAngle + segmentAngle / 2;
-    const spins = 5 + Math.floor(Math.random() * 5);
-    // Normalize current rotation to [0,360) to avoid huge accumulated values drifting
-    const currentNorm = ((rotation % 360) + 360) % 360;
-    const totalRotation = currentNorm + spins * 360 + segmentCenter;
+    // We want to land on an occurrence of pickedName in the middle of loopNames
+    // Start from middle of the loop to avoid edge issues
+    const midRepeat = Math.floor(REPEATS / 2);
+    const targetIndexInLoop = midRepeat * wheelNames.length + pickedIndex;
+    const targetOffset = targetIndexInLoop * ITEM_HEIGHT;
 
-    setRotation(totalRotation);
+    // Add extra spins for drama (full loops)
+    const extraSpins = (3 + Math.floor(Math.random() * 3)) * wheelNames.length * ITEM_HEIGHT;
+    const finalOffset = targetOffset + extraSpins;
 
-    setTimeout(async () => {
-      setSpinning(false);
-      setWinner(pickedName);
-      // Save winner to Firebase
-      const newWinners = { ...savedWinners, [activeRuleta]: { name: pickedName, date: new Date().toISOString() } };
-      try { await setDoc(RULETA_DOC, { winners: newWinners }); } catch(e){}
-    }, 5000);
+    const startOffset = offsetRef.current;
+    const totalDelta = finalOffset - startOffset;
+    const duration = 4000 + Math.random() * 1500;
+    const startTime = performance.now();
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function frame(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const cur = startOffset + totalDelta * easeOut(t);
+      offsetRef.current = cur;
+      setOffset(cur);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(frame);
+      } else {
+        offsetRef.current = finalOffset;
+        setOffset(finalOffset);
+        setSpinning(false);
+        setWinner(pickedName);
+        const newWinners = { ...savedWinners, [activeRuleta]: { name: pickedName, date: new Date().toISOString() } };
+        setDoc(RULETA_DOC, { winners: newWinners }).catch(() => {});
+      }
+    }
+    rafRef.current = requestAnimationFrame(frame);
   }
 
-  const isPremium = activeRuleta === "premium";
-  const accentColor = isPremium ? "#d3172e" : "#e67e22";
+  useEffect(() => {
+    offsetRef.current = 0;
+    setOffset(0);
+    setWinner(null);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [activeRuleta]);
+
   const currentSaved = savedWinners[activeRuleta];
 
+  // Visible window: show 5 items, center is item index 2
+  const VISIBLE = 5;
+  const WINDOW_HEIGHT = ITEM_HEIGHT * VISIBLE;
+  const centerOffset = Math.round(offset / ITEM_HEIGHT);
+
   return (
-    <div className="fi" style={{maxWidth:600,margin:"0 auto"}}>
+    <div className="fi" style={{maxWidth:560,margin:"0 auto"}}>
       {/* Header */}
       <div style={{textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:"2rem",marginBottom:4}}>🎰</div>
@@ -1841,37 +1860,33 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
         </div>
       </div>
 
-      {/* Toggle Premium / General */}
-      <div style={{display:"flex",gap:0,marginBottom:20,borderRadius:10,overflow:"hidden",border:"2px solid #e5e7eb"}}>
-        {[["premium","🏆 "+(lang==="fr"?"Premium":"Premium"),"#d3172e"],["general","🎟️ "+(lang==="fr"?"Général":"General"),"#e67e22"]].map(([id,label,color])=>(
-          <button key={id} onClick={()=>{setActiveRuleta(id);setWinner(null);}}
+      {/* Toggle */}
+      <div style={{display:"flex",marginBottom:20,borderRadius:10,overflow:"hidden",border:"2px solid #e5e7eb"}}>
+        {[["premium","🏆 Premium","#d3172e"],["general","🎟️ "+(lang==="fr"?"Général":"General"),"#e67e22"]].map(([id,label,color])=>(
+          <button key={id} onClick={()=>{if(!spinning){setActiveRuleta(id);setWinner(null);}}}
             style={{flex:1,padding:"10px",border:"none",cursor:"pointer",fontWeight:700,fontSize:"0.85rem",
-              background:activeRuleta===id?color:"#fff",
-              color:activeRuleta===id?"#fff":"#6b7280",
-              transition:"all 0.2s"}}>
+              background:activeRuleta===id?color:"#fff",color:activeRuleta===id?"#fff":"#6b7280",transition:"all 0.2s"}}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Info banner */}
+      {/* Info */}
       <div style={{background:isPremium?"#fff5f5":"#fff7ed",border:`1px solid ${isPremium?"#fca5a5":"#fed7aa"}`,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:"0.8rem",color:isPremium?"#991b1b":"#92400e"}}>
         {isPremium
-          ? (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+ — réservé aux participants avec au moins un pronostic exact 🎯":"Entradas: 1 por factura aprobada de $50+ — solo para participantes con al menos un pronóstico exacto 🎯")
-          : (lang==="fr"?"Entrées : 1 par facture approuvée de 50 $+. Plus de factures = plus de chances de gagner ! 🧾":"Entradas: 1 por factura aprobada de $50+. ¡Más facturas = más chances de ganar! 🧾")
-        }
+          ? (lang==="fr"?"1 entrée par facture approuvée 50$+ — participants avec au moins 1 pronostic exact 🎯":"1 entrada por factura aprobada $50+ — solo participantes con al menos 1 pronóstico exacto 🎯")
+          : (lang==="fr"?"1 entrée par facture approuvée 50$+. Plus de factures = plus de chances ! 🧾":"1 entrada por factura aprobada $50+. ¡Más facturas = más chances! 🧾")}
       </div>
 
       {/* Stats */}
-      <div style={{display:"flex",gap:10,marginBottom:20}}>
-        {[
-          ["🧾", entrants.length, lang==="fr"?"entrées":"entradas"],
-          ["👥", uniqueNames.length, lang==="fr"?"participants":"participantes"],
+      <div style={{display:"flex",gap:10,marginBottom:24}}>
+        {[["🧾", entrants.length, lang==="fr"?"entrées":"entradas"],
+          ["👥", uniqueNames.length, lang==="fr"?"participants":"participantes"]
         ].map(([icon,val,label],i)=>(
           <div key={i} style={{flex:1,background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:10,padding:"10px",textAlign:"center"}}>
-            <div style={{fontSize:"1.2rem"}}>{icon}</div>
+            <div style={{fontSize:"1.1rem"}}>{icon}</div>
             <div style={{fontWeight:800,fontSize:"1.4rem",color:accentColor}}>{val}</div>
-            <div style={{fontSize:"0.7rem",color:"#9ca3af",letterSpacing:0.5}}>{label}</div>
+            <div style={{fontSize:"0.7rem",color:"#9ca3af"}}>{label}</div>
           </div>
         ))}
       </div>
@@ -1880,77 +1895,106 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
         <div style={{textAlign:"center",padding:"40px 20px",color:"#9ca3af"}}>
           <div style={{fontSize:"3rem",marginBottom:10}}>🎱</div>
           <div style={{fontWeight:600}}>
-            {lang==="fr"?"Aucun participant pour cette roulette encore.":"Aún no hay participantes en esta ruleta."}
+            {lang==="fr"?"Aucun participant encore.":"Aún no hay participantes."}
           </div>
         </div>
       ) : (
         <>
-          {/* Wheel */}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:24}}>
-            {/* Pointer */}
-            <div style={{width:0,height:0,borderLeft:"14px solid transparent",borderRight:"14px solid transparent",borderTop:`28px solid ${accentColor}`,marginBottom:-4,zIndex:10,filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.3)))"}} />
-            <div style={{position:"relative",width:300,height:300}}>
-              <svg width="300" height="300" viewBox="0 0 300 300"
-                style={{transform:`rotate(${rotation}deg)`,transition:spinning?"transform 5s cubic-bezier(0.17,0.67,0.12,0.99)":"none",borderRadius:"50%",boxShadow:"0 4px 24px rgba(0,0,0,0.15)"}}>
-                {wheelNames.map((name, i) => {
-                  const total = wheelNames.length;
-                  const angle = 360 / total;
-                  const startAngle = i * angle;
-                  const endAngle = startAngle + angle;
-                  const start = polarToCartesian(150, 150, 140, startAngle);
-                  const end = polarToCartesian(150, 150, 140, endAngle);
-                  const mid = polarToCartesian(150, 150, 95, startAngle + angle / 2);
-                  const largeArc = angle > 180 ? 1 : 0;
-                  const color = COLORS[i % COLORS.length];
-                  const shortName = name.split(" ")[0] + (name.split(" ")[1] ? " " + name.split(" ")[1][0] + "." : "");
-                  const fontSize = total > 12 ? 8 : total > 8 ? 10 : 12;
+          {/* Drum / Slot machine */}
+          <div style={{position:"relative",margin:"0 auto 24px",width:"100%",maxWidth:400}}>
+            {/* Viewport */}
+            <div style={{
+              height: WINDOW_HEIGHT,
+              overflow:"hidden",
+              borderRadius:16,
+              background:"#0f172a",
+              boxShadow:`0 8px 40px rgba(0,0,0,0.35), inset 0 0 30px rgba(0,0,0,0.4)`,
+              position:"relative",
+            }}>
+              {/* Scrolling list */}
+              <div style={{
+                position:"absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                transform:`translateY(${-offset + ITEM_HEIGHT * 2}px)`,
+                willChange:"transform",
+              }}>
+                {loopNames.map((name, i) => {
+                  const distFromCenter = i - centerOffset;
+                  const absDist = Math.abs(distFromCenter);
+                  const isCenter = absDist === 0;
+                  const blur = absDist === 0 ? 0 : absDist === 1 ? 2 : absDist === 2 ? 5 : 10;
+                  const opacity = absDist === 0 ? 1 : absDist === 1 ? 0.65 : absDist === 2 ? 0.35 : 0.1;
+                  const scale = absDist === 0 ? 1.15 : absDist === 1 ? 0.9 : 0.75;
+                  const color = isCenter ? (spinning ? "#fff" : accentColor) : "#94a3b8";
                   return (
-                    <g key={i}>
-                      <path d={`M 150 150 L ${start.x} ${start.y} A 140 140 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={color} stroke="#fff" strokeWidth="2" />
-                      <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle"
-                        fill="#fff" fontSize={fontSize} fontWeight="700"
-                        transform={`rotate(${startAngle + angle/2}, ${mid.x}, ${mid.y})`}
-                        style={{pointerEvents:"none"}}>
-                        {shortName}
-                      </text>
-                    </g>
+                    <div key={i} style={{
+                      height: ITEM_HEIGHT,
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center",
+                      fontSize: isCenter ? "1.2rem" : "0.95rem",
+                      fontWeight: isCenter ? 800 : 500,
+                      color,
+                      filter: `blur(${blur}px)`,
+                      opacity,
+                      transform: `scale(${scale})`,
+                      transition: spinning ? "none" : "all 0.3s ease",
+                      letterSpacing: isCenter ? 1 : 0,
+                      userSelect:"none",
+                      padding:"0 20px",
+                      textAlign:"center",
+                    }}>
+                      {name}
+                    </div>
                   );
                 })}
-                <circle cx="150" cy="150" r="18" fill="#fff" stroke="#e5e7eb" strokeWidth="2"/>
-                <text x="150" y="150" textAnchor="middle" dominantBaseline="middle" fontSize="16">🎰</text>
-              </svg>
+              </div>
+
+              {/* Center highlight line top */}
+              <div style={{position:"absolute",top:ITEM_HEIGHT*2,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accentColor},transparent)`,opacity:0.8,pointerEvents:"none"}} />
+              {/* Center highlight line bottom */}
+              <div style={{position:"absolute",top:ITEM_HEIGHT*3,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accentColor},transparent)`,opacity:0.8,pointerEvents:"none"}} />
+
+              {/* Top fade */}
+              <div style={{position:"absolute",top:0,left:0,right:0,height:ITEM_HEIGHT*2,background:"linear-gradient(to bottom,#0f172a 0%,transparent 100%)",pointerEvents:"none"}} />
+              {/* Bottom fade */}
+              <div style={{position:"absolute",bottom:0,left:0,right:0,height:ITEM_HEIGHT*2,background:"linear-gradient(to top,#0f172a 0%,transparent 100%)",pointerEvents:"none"}} />
             </div>
           </div>
 
-          {/* Spin button - admin only */}
-          {isAdmin && (
+          {/* Spin button */}
+          {isAdmin ? (
             <div style={{textAlign:"center",marginBottom:20}}>
-              <button
-                onClick={spin}
-                disabled={spinning}
-                style={{background:spinning?"#9ca3af":accentColor,color:"#fff",border:"none",borderRadius:12,padding:"14px 40px",fontSize:"1rem",fontWeight:800,cursor:spinning?"not-allowed":"pointer",letterSpacing:1,boxShadow:`0 4px 16px ${accentColor}66`,transition:"all 0.2s",transform:spinning?"scale(0.97)":"scale(1)"}}>
+              <button onClick={spin} disabled={spinning}
+                style={{background:spinning?"#475569":accentColor,color:"#fff",border:"none",borderRadius:12,
+                  padding:"14px 48px",fontSize:"1rem",fontWeight:800,cursor:spinning?"not-allowed":"pointer",
+                  letterSpacing:1,boxShadow:spinning?"none":`0 4px 20px ${accentColor}88`,transition:"all 0.2s",
+                  transform:spinning?"scale(0.97)":"scale(1)"}}>
                 {spinning
-                  ? (lang==="fr"?"Tirage en cours...":"Girando...")
-                  : (lang==="fr"?"🎰 Lancer la roulette":"🎰 Girar la ruleta")}
+                  ? (lang==="fr"?"⏳ Tirage en cours...":"⏳ Girando...")
+                  : (lang==="fr"?"🎰 Lancer le tirage":"🎰 Girar")}
               </button>
             </div>
-          )}
-          {!isAdmin && (
+          ) : (
             <div style={{textAlign:"center",marginBottom:20,color:"#9ca3af",fontSize:"0.82rem"}}>
-              {lang==="fr"?"L'administrateur lancera la roulette.":"El administrador girará la ruleta."}
+              {lang==="fr"?"L'administrateur lancera le tirage.":"El administrador girará la ruleta."}
             </div>
           )}
 
-          {/* Winner display */}
-          {winner && (
-            <div style={{background:`linear-gradient(135deg,${accentColor},${isPremium?"#a0122a":"#c0392b"})`,borderRadius:14,padding:"20px",textAlign:"center",marginBottom:16,boxShadow:`0 8px 32px ${accentColor}44`}}>
-              <div style={{fontSize:"2.5rem",marginBottom:6}}>🎉</div>
-              <div style={{color:"rgba(255,255,255,0.8)",fontSize:"0.78rem",fontWeight:600,letterSpacing:2,marginBottom:4}}>
-                {lang==="fr"?"GAGNANT":"GANADOR"}
+          {/* Winner card */}
+          {winner && !spinning && (
+            <div style={{background:`linear-gradient(135deg,${accentColor} 0%,${isPremium?"#7f0d1a":"#a84300"} 100%)`,
+              borderRadius:16,padding:"24px 20px",textAlign:"center",marginBottom:20,
+              boxShadow:`0 12px 40px ${accentColor}55`,animation:"fadeIn 0.5s ease"}}>
+              <div style={{fontSize:"2.5rem",marginBottom:8}}>🎉</div>
+              <div style={{color:"rgba(255,255,255,0.75)",fontSize:"0.72rem",fontWeight:700,letterSpacing:3,marginBottom:6}}>
+                {lang==="fr"?"GAGNANT · WINNER":"GANADOR · WINNER"}
               </div>
-              <div style={{color:"#fff",fontWeight:800,fontSize:"1.5rem",letterSpacing:0.5}}>{winner}</div>
-              <div style={{color:"rgba(255,255,255,0.7)",fontSize:"0.75rem",marginTop:6}}>
-                {isPremium?"🏆 Premio Principal":"🎟️ Premio General"}
+              <div style={{color:"#fff",fontWeight:900,fontSize:"1.6rem",letterSpacing:0.5,marginBottom:6}}>{winner}</div>
+              <div style={{color:"rgba(255,255,255,0.65)",fontSize:"0.78rem"}}>
+                {isPremium?"🏆 Premio Principal / Grand Prix":"🎟️ Premio General / Prix Général"}
               </div>
             </div>
           )}
@@ -1958,7 +2002,7 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
           {/* Last saved winner */}
           {!winner && currentSaved && (
             <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px",textAlign:"center",marginBottom:16}}>
-              <div style={{fontSize:"0.72rem",color:"#9ca3af",marginBottom:4,letterSpacing:1}}>
+              <div style={{fontSize:"0.7rem",color:"#9ca3af",marginBottom:4,letterSpacing:1,fontWeight:600}}>
                 {lang==="fr"?"DERNIER GAGNANT":"ÚLTIMO GANADOR"}
               </div>
               <div style={{fontWeight:700,color:BRAND.gray900,fontSize:"1.1rem"}}>{currentSaved.name}</div>
@@ -1968,8 +2012,8 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
 
           {/* Entrants list */}
           <div style={{background:"#f9fafb",border:"1px solid #e5e7eb",borderRadius:12,padding:"14px"}}>
-            <div style={{fontWeight:700,fontSize:"0.85rem",color:BRAND.gray900,marginBottom:10,letterSpacing:0.5}}>
-              {lang==="fr"?"Participants dans la roulette":"Participantes en la ruleta"}
+            <div style={{fontWeight:700,fontSize:"0.85rem",color:BRAND.gray900,marginBottom:10}}>
+              {lang==="fr"?"Participants":"Participantes en la ruleta"}
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {uniqueNames.map(name => {
@@ -1989,12 +2033,6 @@ function RuletaView({ participants, matches, invoices, isAdmin }) {
       )}
     </div>
   );
-}
-
-// Helper for wheel geometry
-function polarToCartesian(cx, cy, r, angleDeg) {
-  const rad = (angleDeg - 90) * Math.PI / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
 function FixtureView({ matches }) {
